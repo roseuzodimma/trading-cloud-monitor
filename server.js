@@ -1,7 +1,7 @@
 const express=require("express");
 const path=require("path");
 const app=express(); app.use(express.json()); app.use(express.static(path.join(__dirname,"public")));
-const PORT=process.env.PORT||3000, API_KEY=process.env.TWELVE_DATA_API_KEY, INTERVAL=process.env.TIMEFRAME||"5min", POLL_MS=Math.max(60000,Number(process.env.POLL_MS||60000));
+const PORT=process.env.PORT||3000, API_KEY=process.env.TWELVE_DATA_API_KEY, INTERVAL=process.env.TIMEFRAME||"5min", POLL_MS=Math.max(1800000,Number(process.env.POLL_MS||60000));
 const pairs=["EUR/USD","GBP/USD","USD/CAD","XAU/USD","USD/CHF","EUR/GBP","GBP/CHF"], state={lastScan:null,pairs:{}}, lastSignal={};
 function ema(a,p){let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
 function rsi(a,p=14){if(a.length<p+1)return 50;let g=0,l=0;for(let i=a.length-p;i<a.length;i++){let d=a[i]-a[i-1];if(d>=0)g+=d;else l-=d}if(!l)return 100;return 100-100/(1+(g/p)/(l/p))}
