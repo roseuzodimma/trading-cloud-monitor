@@ -9,4 +9,18 @@ function evaluate(pair,c){if(c.length<80)return{pair,signal:"WAIT",detail:"Not e
 async function fetchCandles(pair){if(!API_KEY)throw Error("TWELVE_DATA_API_KEY is not configured");let u=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair)}&interval=${INTERVAL}&outputsize=100&apikey=${encodeURIComponent(API_KEY)}`,r=await fetch(u);if(!r.ok)throw Error("Twelve Data HTTP "+r.status);let d=await r.json();if(d.status==="error")throw Error(d.message||"Twelve Data error");return d.values.slice().reverse()}
 async function notify(s){let t=process.env.TELEGRAM_BOT_TOKEN,ch=process.env.TELEGRAM_CHAT_ID;if(!t||!ch)return;await fetch(`https://api.telegram.org/bot${t}/sendMessage`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({chat_id:ch,text:`🚨 ${s.signal}: ${s.pair}\nEntry: ${s.entry}\nScore: ${s.score}/5\n${s.detail}`})})}
 async function scan(){for(const p of pairs)try{let s=evaluate(p,await fetchCandles(p));state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
-app.get("/api/status",(q,r)=>r.json({timeframe:INTERVAL,lastScan:state.lastScan,pairs:state.pairs}));app.get("/health",(q,r)=>r.json({ok:true}));app.use((q,r)=>r.sendFile(path.join(__dirname,"public","index.html")));scan();setInterval(scan,POLL_MS);app.listen(PORT,()=>console.log("Cloud monitor running on "+PORT));
+app.get("/api/status",(q,r)=>r.json({timeframe:INTERVAL,lastScan:state.lastScan,pairs:state.pairs}));
+app.get("/api/test-alert",async(q,r)=>{
+  try{
+    await notify({
+      signal:"TEST ALERT",
+      pair:"SYSTEM",
+      entry:"—",
+      score:5,
+      detail:"Telegram connection is working."
+    });
+    r.json({ok:true,message:"Test alert sent."});
+  }catch(e){
+    r.status(500).json({ok:false,error:e.message});
+  }
+});app.get("/health",(q,r)=>r.json({ok:true}));app.use((q,r)=>r.sendFile(path.join(__dirname,"public","index.html")));scan();setInterval(scan,POLL_MS);app.listen(PORT,()=>console.log("Cloud monitor running on "+PORT));
