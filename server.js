@@ -5,9 +5,28 @@ const PORT=process.env.PORT||3000, API_KEY=process.env.TWELVE_DATA_API_KEY, INTE
 const pairs=["EUR/USD","GBP/USD","USD/CAD","XAU/USD","USD/CHF","EUR/GBP","GBP/CHF"], state={lastScan:null,pairs:{}}, lastSignal={};
 function ema(a,p){let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
 function rsi(a,p=14){if(a.length<p+1)return 50;let g=0,l=0;for(let i=a.length-p;i<a.length;i++){let d=a[i]-a[i-1];if(d>=0)g+=d;else l-=d}if(!l)return 100;return 100-100/(1+(g/p)/(l/p))}
-function evaluate(pair,c){if(c.length<80)return{pair,signal:"WAIT",detail:"Not enough candles"};let b=c.map(x=>({open:+x.open,high:+x.high,low:+x.low,close:+x.close})),cl=b.map(x=>x.close),e20=ema(cl.slice(-80),20),e50=ema(cl.slice(-80),50),rs=rsi(cl.slice(-40),14),x=b.at(-1),look=b.slice(-21,-1),res=Math.max(...look.map(x=>x.high)),sup=Math.min(...look.map(x=>x.low));let buy=(x.close>e20&&e20>e50?1:0)+(rs>=55&&rs<=72?1:0)+(x.close>res&&x.close>x.open?1:0)+(x.close>res?1:0)+(x.close>b.at(-2).close?1:0),sell=(x.close<e20&&e20<e50?1:0)+(rs<=45&&rs>=28?1:0)+(x.close<sup&&x.close<x.open?1:0)+(x.close<sup?1:0)+(x.close<b.at(-2).close?1:0);if(buy>=4&&x.close>res)return{pair,signal:"STRONG BUY",score:buy,entry:x.close,detail:`Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakout ✓`};if(sell>=4&&x.close<sup)return{pair,signal:"STRONG SELL",score:sell,entry:x.close,detail:`Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakdown ✓`};return{pair,signal:"WAIT",score:Math.max(buy,sell),detail:`BUY ${buy}/5 • SELL ${sell}/5`}}
+function evaluate(pair,c){if(c.length<80)return{pair,signal:"WAIT",detail:"Not enough candles"};let b=c.map(x=>({open:+x.open,high:+x.high,low:+x.low,close:+x.close})),cl=b.map(x=>x.close),e20=ema(cl.slice(-80),20),e50=ema(cl.slice(-80),50),rs=rsi(cl.slice(-40),14),x=b.at(-1),look=b.slice(-21,-1),res=Math.max(...look.map(x=>x.high)),sup=Math.min(...look.map(x=>x.low));let buy=(x.close>e20&&e20>e50?1:0)+(rs>=55&&rs<=72?1:0)+(x.close>res&&x.close>x.open?1:0)+(x.close>res?1:0)+(x.close>b.at(-2).close?1:0),sell=(x.close<e20&&e20<e50?1:0)+(rs<=45&&rs>=28?1:0)+(x.close<sup&&x.close<x.open?1:0)+(x.close<sup?1:0)+(x.close<b.at(-2).close?1:0);if(buy>=4&&x.close>res){
+  let entry=x.close;
+  let sl=sup;
+  let risk=entry-sl;
+  let tp=entry+(risk*2);
+  return{pair,signal:"STRONG BUY",score:buy,entry:+entry.toFixed(5),stopLoss:+sl.toFixed(5),takeProfit:+tp.toFixed(5),detail:`Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakout ✓ R:R 1:2`};
+}
+
+if(sell>=4&&x.close<sup){
+  let entry=x.close;
+  let sl=res;
+  let risk=sl-entry;
+  let tp=entry-(risk*2);
+  return{pair,signal:"STRONG SELL",score:sell,entry:+entry.toFixed(5),stopLoss:+sl.toFixed(5),takeProfit:+tp.toFixed(5),detail:`Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakdown ✓ R:R 1:2`};
+}return{pair,signal:"WAIT",score:Math.max(buy,sell),detail:`BUY ${buy}/5 • SELL ${sell}/5`}}
 async function fetchCandles(pair){if(!API_KEY)throw Error("TWELVE_DATA_API_KEY is not configured");let u=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair)}&interval=${INTERVAL}&outputsize=100&apikey=${encodeURIComponent(API_KEY)}`,r=await fetch(u);if(!r.ok)throw Error("Twelve Data HTTP "+r.status);let d=await r.json();if(d.status==="error")throw Error(d.message||"Twelve Data error");return d.values.slice().reverse()}
-async function notify(s){let t=process.env.TELEGRAM_BOT_TOKEN,ch=process.env.TELEGRAM_CHAT_ID;if(!t||!ch)return;await fetch(`https://api.telegram.org/bot${t}/sendMessage`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({chat_id:ch,text:`🚨 ${s.signal}: ${s.pair}\nEntry: ${s.entry}\nScore: ${s.score}/5\n${s.detail}`})})}
+async function notify(s){let t=process.env.TELEGRAM_BOT_TOKEN,ch=process.env.TELEGRAM_CHAT_ID;if(!t||!ch)return;await fetch(`https://api.telegram.org/bot${t}/sendMessage`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({chat_id:ch,text:`🚨 ${s.signal}: ${s.pair}
+Entry: ${s.entry}
+🛑 Stop Loss: ${s.stopLoss}
+🎯 Take Profit: ${s.takeProfit}
+⭐ Score: ${s.score}/5
+📊 ${s.detail}`})})}
 async function scan(){for(const p of pairs)try{let s=evaluate(p,await fetchCandles(p));state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
 app.get("/api/status",(q,r)=>r.json({timeframe:INTERVAL,lastScan:state.lastScan,pairs:state.pairs}));
 app.get("/api/test-alert",async(q,r)=>{
