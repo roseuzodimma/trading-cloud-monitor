@@ -1,0 +1,1 @@
+Trading Cloud Monitor\n\nSet TWELVE_DATA_API_KEY in your cloud host environment variables. Optional Telegram variables: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID. Start with npm start.
