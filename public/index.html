@@ -1,0 +1,50 @@
+public/index.html
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trading Cloud Monitor</title>
+<style>
+body{font-family:Arial;background:#0f1115;color:#eee;padding:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.card{padding:14px;border:1px solid #333;border-radius:10px;background:#171a20}
+.sig{font-size:18px;font-weight:bold;margin:8px 0}
+.meta{font-size:12px;opacity:.7}
+</style>
+</head>
+<body>
+
+<h2>📡 Trading Cloud Monitor</h2>
+
+<div id="s" class="meta">Loading…</div>
+<div id="g" class="grid"></div>
+
+<script>
+async function x(){
+  try{
+    let d=await(await fetch('/api/status')).json();
+
+    s.textContent='Last scan: '+(d.lastScan||'starting')+' • '+d.timeframe;
+
+    g.innerHTML=Object.values(d.pairs).map(x=>`
+      <div class="card">
+        <b>${x.pair}</b>
+        <div class="sig">
+          ${x.signal}${x.score?' — '+x.score+'/5':''}
+        </div>
+        ${x.entry?'Entry: '+x.entry+'<br>':''}
+        ${x.detail||''}
+        <div class="meta">${x.updatedAt||''}</div>
+      </div>
+    `).join('');
+  }catch(e){
+    s.textContent='Cloud monitor unavailable';
+  }
+}
+
+x();
+setInterval(x,15000);
+</script>
+
+</body>
+</html>
