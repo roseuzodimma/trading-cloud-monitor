@@ -48,7 +48,7 @@ if(sell>=4&&x.close<sup){
   let tp=entry-(risk*2);
   return{pair,signal:"STRONG SELL",score:sell,entry:+entry.toFixed(5),stopLoss:+sl.toFixed(5),takeProfit:+tp.toFixed(5),detail:`Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakdown ✓ R:R 1:2`};
 }return{pair,signal:"WAIT",score:Math.max(buy,sell),detail:`BUY ${buy}/5 • SELL ${sell}/5`}}
-async async function fetchCandles(pair,interval=INTERVAL){
+ async function fetchCandles(pair,interval=INTERVAL){
   if(!API_KEY)throw Error("TWELVE_DATA_API_KEY is not configured");
   let u=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair)}&interval=${encodeURIComponent(interval)}&outputsize=100&apikey=${encodeURIComponent(API_KEY)}`;
   let r=await fetch(u);
