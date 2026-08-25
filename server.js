@@ -64,7 +64,99 @@ Entry: ${s.entry}
 🎯 Take Profit: ${s.takeProfit}
 ⭐ Score: ${s.score}/5
 📊 ${s.detail}`})})}
-async function scan(){for(const p of pairs)try{let s=evaluate(p,await fetchCandles(p));state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
+function multiTimeframeSignal(pair,h12,h1,m5){
+  if(!h12?.length||!h1?.length||!m5?.length){
+    return {pair,signal:"WAIT",score:0,detail:"Not enough timeframe data"};
+  }
+
+  const b12=smc(h12);
+  const b1=smc(h1);
+
+  const last=m5[m5.length-1];
+  const prev=m5[m5.length-2];
+
+  const close=+last.close;
+  const open=+last.open;
+  const high=+last.high;
+  const low=+last.low;
+
+  const prevHigh=+prev.high;
+  const prevLow=+prev.low;
+
+  const recent=m5.slice(-10);
+  const recentHigh=Math.max(...recent.map(x=>+x.high));
+  const recentLow=Math.min(...recent.map(x=>+x.low));
+
+  // Bullish 5M confirmation:
+  // price pulls back, then closes bullish and breaks the previous candle high
+  const bullish5=
+    close>open &&
+    close>prevHigh &&
+    low<=recentLow+(recentHigh-recentLow)*0.45;
+
+  // Bearish 5M confirmation:
+  // price pulls back upward, then closes bearish and breaks previous candle low
+  const bearish5=
+    close<open &&
+    close<prevLow &&
+    high>=recentHigh-(recentHigh-recentLow)*0.45;
+
+  // BUY only when 12H + 1H agree
+  if(b12.bias==="BULLISH" && b1.bias==="BULLISH" && bullish5){
+
+    const sl=recentLow;
+    const risk=close-sl;
+
+    if(risk<=0)return{pair,signal:"WAIT",score:0,detail:"Invalid BUY risk"};
+
+    const tp=close+(risk*2);
+
+    return{
+      pair,
+      signal:"STRONG BUY",
+      entry:close,
+      stopLoss:sl,
+      takeProfit:tp,
+      score:5,
+      detail:"12H bullish ✓ 1H bullish ✓ 5M pullback/break ✓ SMC confirmed"
+    };
+  }
+
+  // SELL only when 12H + 1H agree
+  if(b12.bias==="BEARISH" && b1.bias==="BEARISH" && bearish5){
+
+    const sl=recentHigh;
+    const risk=sl-close;
+
+    if(risk<=0)return{pair,signal:"WAIT",score:0,detail:"Invalid SELL risk"};
+
+    const tp=close-(risk*2);
+
+    return{
+      pair,
+      signal:"STRONG SELL",
+      entry:close,
+      stopLoss:sl,
+      takeProfit:tp,
+      score:5,
+      detail:"12H bearish ✓ 1H bearish ✓ 5M pullback/break ✓ SMC confirmed"
+    };
+  }
+
+  return{
+    pair,
+    signal:"WAIT",
+    score:0,
+    detail:`12H ${b12.bias} | 1H ${b1.bias} | Waiting for 5M confirmation`
+  };
+            }
+async function scan(){for(const p of pairs)try{let [h12,h1,m5]=await Promise.all([
+  fetchCandles(p,"12h"),
+  fetchCandles(p,"1h"),
+  fetchCandles(p,"5min")
+]);
+
+let s=multiTimeframeSignal(p,h12,h1,m5);state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
 app.get("/api/status",(q,r)=>r.json({timeframe:INTERVAL,lastScan:state.lastScan,pairs:state.pairs}));
 app.get("/api/test-alert",async(q,r)=>{
   try{
