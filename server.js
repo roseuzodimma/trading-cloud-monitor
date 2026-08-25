@@ -171,9 +171,10 @@ function multiTimeframeSignal(pair,h12,h1,m5){
   };
             }
 async function scan(){for(const p of pairs)try{let [h12,h1,m5]=await Promise.all([
-  fetchCandles(p,"12h"),
-  fetchCandles(p,"1h"),
-  fetchCandles(p,"5min")
+  let [h12,h1,m5]=await Promise.all([
+  getCachedCandles(p,"12h"),
+  getCachedCandles(p,"1h"),
+  getCachedCandles(p,"5min")
 ]);
 
 let s=multiTimeframeSignal(p,h12,h1,m5);state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
