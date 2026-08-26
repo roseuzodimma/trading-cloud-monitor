@@ -147,9 +147,9 @@ function multiTimeframeSignal(pair,h12,h1,m5){
   const prevHigh=+prev.high;
   const prevLow=+prev.low;
 
-  const recent=m5.slice(-10);
-  const recentHigh=Math.max(...recent.map(x=>+x.high));
-  const recentLow=Math.min(...recent.map(x=>+x.low));
+  const recent=m5.slice(-11,-1);
+const recentHigh=Math.max(...recent.map(x=>+x.high));
+const recentLow=Math.min(...recent.map(x=>+x.low));
 
   // Bullish 5M confirmation:
   // price pulls back, then closes bullish and breaks the previous candle high
