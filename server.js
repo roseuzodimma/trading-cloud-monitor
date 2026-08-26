@@ -157,6 +157,12 @@ function multiTimeframeSignal(pair,h12,h1,m5){
     close>open &&
     close>prevHigh &&
     low<=recentLow+(recentHigh-recentLow)*0.45;
+  const range=recentHigh-recentLow;
+const bullishExtension=range>0?(close-recentLow)/range:1;
+const bearishExtension=range>0?(recentHigh-close)/range:1;
+
+const buyNotExtended=bullishExtension<=0.80;
+const sellNotExtended=bearishExtension<=0.80;
 
   // Bearish 5M confirmation:
   // price pulls back upward, then closes bearish and breaks previous candle low
@@ -166,7 +172,11 @@ function multiTimeframeSignal(pair,h12,h1,m5){
     high>=recentHigh-(recentHigh-recentLow)*0.45;
 
   // BUY only when 12H + 1H agree
-  if(b12.bias==="BULLISH" && b1.bias==="BULLISH" && bullish5){
+  if(
+  (b12.bias==="BULLISH" && (b12.strength==="STRONG" || b12.strength==="CONFIRMED")) &&
+  (b1.bias==="BULLISH" && (b1.strength==="STRONG" || b1.strength==="CONFIRMED")) && bullish5
+&& buyNotExtended
+){
 
     const sl=recentLow;
     const risk=close-sl;
@@ -187,7 +197,11 @@ function multiTimeframeSignal(pair,h12,h1,m5){
   }
 
   // SELL only when 12H + 1H agree
-  if(b12.bias==="BEARISH" && b1.bias==="BEARISH" && bearish5){
+  if(
+  (b12.bias==="BEARISH" && (b12.strength==="STRONG" || b12.strength==="CONFIRMED")) &&
+  (b1.bias==="BEARISH" && (b1.strength==="STRONG" || b1.strength==="CONFIRMED")) && bearish5
+&& sellNotExtended
+){
 
     const sl=recentHigh;
     const risk=sl-close;
