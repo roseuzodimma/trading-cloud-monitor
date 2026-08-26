@@ -1,49 +1,591 @@
-public/index.html
 <!doctype html>
-<html>
+<html lang="en">
 <head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Trading Cloud Monitor</title>
+
 <style>
-body{font-family:Arial;background:#0f1115;color:#eee;padding:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.card{padding:14px;border:1px solid #333;border-radius:10px;background:#171a20}
-.sig{font-size:18px;font-weight:bold;margin:8px 0}
-.meta{font-size:12px;opacity:.7}
-</style>
-</head>
-<body>
+*{box-sizing:border-box}
 
-<h2>📡 Trading Cloud Monitor</h2>
+body{
+  font-family:Arial,sans-serif;
+  margin:0;
+  padding:18px;
+  color:#eef4ff;
+  background:linear-gradient(135deg,#061226 0%,#0a1933 52%,#07101f 100%);
+  min-height:100vh;
+}
 
-<div id="s" class="meta">Loading…</div>
-<div id="g" class="grid"></div>
+.wrap{
+  max-width:1150px;
+  margin:auto;
+}
 
-<script>
-async function x(){
-  try{
-    let d=await(await fetch('/api/status')).json();
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  margin-bottom:18px;
+}
 
-    s.textContent='Last scan: '+(d.lastScan||'starting')+' • '+d.timeframe;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
 
-    g.innerHTML=Object.values(d.pairs).map(x=>`
-      <div class="card">
-        <b>${x.pair}</b>
-        <div class="sig">
-          ${x.signal}${x.score?' — '+x.score+'/5':''}
-        </div>
-        ${x.entry?'Entry: '+x.entry+'<br>':''}
-        ${x.detail||''}
-        <div class="meta">${x.updatedAt||''}</div>
-      </div>
-    `).join('');
-  }catch(e){
-    s.textContent='Cloud monitor unavailable';
+.logo{
+  font-size:32px;
+}
+
+h1{
+  font-size:25px;
+  margin:0;
+}
+
+.subtitle{
+  color:#8fa8c8;
+  font-size:13px;
+  margin-top:4px;
+}
+
+.online{
+  color:#19e68a;
+  font-weight:bold;
+  font-size:13px;
+  white-space:nowrap;
+}
+
+.refresh{
+  background:#102344;
+  color:#9bcaff;
+  border:1px solid #244777;
+  border-radius:10px;
+  padding:9px 12px;
+  font-size:18px;
+  cursor:pointer;
+}
+
+.summary{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:11px;
+  margin-bottom:18px;
+}
+
+.box,
+.section,
+.card{
+  background:rgba(13,28,50,.9);
+  border:1px solid #203b62;
+  border-radius:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.18);
+}
+
+.box{
+  padding:15px;
+}
+
+.label{
+  font-size:11px;
+  color:#8fa8c8;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+}
+
+.value{
+  font-size:20px;
+  font-weight:bold;
+  margin-top:7px;
+}
+
+.green{color:#19e68a}
+.blue{color:#55a8ff}
+.purple{color:#bd7cff}
+.orange{color:#ffb52e}
+.red{color:#ff5b65}
+
+.section{
+  padding:16px;
+}
+
+.section-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.section-title h2{
+  margin:0;
+  font-size:19px;
+}
+
+.auto{
+  color:#19e68a;
+  font-size:12px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  gap:11px;
+}
+
+.card{
+  padding:15px;
+}
+
+.card-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+}
+
+.pair{
+  font-size:18px;
+  font-weight:bold;
+}
+
+.sig{
+  font-size:16px;
+  font-weight:bold;
+  margin:6px 0;
+}
+
+.wait{color:#ffbf2f}
+.buy{color:#19e68a}
+.sell{color:#ff5b65}
+.offline{color:#ff9f43}
+
+.meta{
+  font-size:12px;
+  color:#8098b8;
+  margin-top:8px;
+  line-height:1.5;
+}
+
+.details{
+  margin-top:11px;
+  color:#c7d7ee;
+  font-size:13px;
+  line-height:1.45;
+}
+
+.dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  display:inline-block;
+  background:#ffbf2f;
+}
+
+.trade{
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid #203b62;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  font-size:12px;
+  color:#9eb5d2;
+}
+
+.trade b{
+  display:block;
+  color:#f2f7ff;
+  margin-top:4px;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:18px;
+}
+
+.action{
+  padding:17px;
+  background:rgba(13,28,50,.9);
+  border:1px solid #203b62;
+  border-radius:14px;
+}
+
+.action h3{
+  margin:0 0 7px;
+  font-size:17px;
+}
+
+.action p{
+  margin:0;
+  color:#8fa8c8;
+  font-size:13px;
+  line-height:1.4;
+}
+
+.footer{
+  text-align:center;
+  color:#627b9e;
+  font-size:12px;
+  margin:18px 0 4px;
+}
+
+@media(max-width:800px){
+  .summary{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .actions{
+    grid-template-columns:1fr;
   }
 }
 
-x();
-setInterval(x,15000);
+@media(max-width:480px){
+  body{
+    padding:12px;
+  }
+
+  h1{
+    font-size:21px;
+  }
+
+  .header{
+    align-items:flex-start;
+  }
+
+  .online{
+    display:none;
+  }
+
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .trade{
+    grid-template-columns:1fr 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="header">
+
+    <div class="brand">
+
+      <div class="logo">📡</div>
+
+      <div>
+        <h1>Trading Cloud Monitor</h1>
+        <div class="subtitle">
+          Smart Money Concepts • Multi-Timeframe
+        </div>
+      </div>
+
+    </div>
+
+    <div class="online">
+      ● System Online
+    </div>
+
+    <button class="refresh" onclick="loadDashboard()">
+      ↻
+    </button>
+
+  </div>
+
+
+  <div class="summary">
+
+    <div class="box">
+      <div class="label">System Status</div>
+      <div class="value green" id="system">
+        Online
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">Monitored Pairs</div>
+      <div class="value blue" id="pairCount">
+        0
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">Alerts</div>
+      <div class="value purple">
+        OFF
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">Last Scan</div>
+      <div class="value orange" id="lastScan">
+        Starting…
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="section">
+
+    <div class="section-title">
+
+      <h2>
+        🌐 Market Pairs Status
+      </h2>
+
+      <div class="auto">
+        ● Auto Refresh
+      </div>
+
+    </div>
+
+
+    <div id="s" class="meta">
+      Loading…
+    </div>
+
+
+    <div id="g" class="grid"></div>
+
+  </div>
+
+
+  <div class="actions">
+
+    <div class="action">
+
+      <h3>
+        📈 Signal Performance & Backtest
+      </h3>
+
+      <p>
+        Test the same signal rules on historical candles
+        before trusting them with real money.
+      </p>
+
+    </div>
+
+
+    <div class="action">
+
+      <h3>
+        🛡️ Stop Loss & Take Profit
+      </h3>
+
+      <p>
+        Live signals continue to use the existing
+        Entry, Stop Loss and Take Profit calculations.
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <div class="footer">
+    © 2026 Trading Cloud Monitor. All rights reserved.
+  </div>
+
+</div>
+
+
+<script>
+
+async function loadDashboard(){
+
+  try{
+
+    const response = await fetch("/api/status");
+
+    const data = await response.json();
+
+    const pairs = Object.values(data.pairs || {});
+
+    document.getElementById("system").textContent = "Online";
+
+    document.getElementById("system").className =
+      "value green";
+
+    document.getElementById("pairCount").textContent =
+      pairs.length;
+
+    document.getElementById("lastScan").textContent =
+      data.lastScan
+        ? new Date(data.lastScan).toLocaleTimeString()
+        : "Starting…";
+
+    document.getElementById("s").textContent =
+      "Last scan: " +
+      (data.lastScan
+        ? new Date(data.lastScan).toLocaleString()
+        : "Starting…") +
+      " • Timeframe: " +
+      (data.timeframe || "5min");
+
+
+    const grid = document.getElementById("g");
+
+
+    if(!pairs.length){
+
+      grid.innerHTML =
+        '<div class="card">' +
+        '<div class="sig wait">WAIT</div>' +
+        '<div class="meta">No pair data available yet.</div>' +
+        '</div>';
+
+      return;
+    }
+
+
+    grid.innerHTML = pairs.map(x => {
+
+      let signalClass = "wait";
+
+      if(x.signal === "STRONG BUY"){
+        signalClass = "buy";
+      }
+
+      if(x.signal === "STRONG SELL"){
+        signalClass = "sell";
+      }
+
+      if(x.signal === "OFFLINE"){
+        signalClass = "offline";
+      }
+
+
+      let tradeInfo = "";
+
+
+      if(x.entry !== undefined){
+
+        tradeInfo = `
+          <div class="trade">
+
+            <div>
+              Entry
+              <b>${x.entry}</b>
+            </div>
+
+            <div>
+              Stop Loss
+              <b>${x.stopLoss ?? "—"}</b>
+            </div>
+
+            <div>
+              Take Profit
+              <b>${x.takeProfit ?? "—"}</b>
+            </div>
+
+          </div>
+        `;
+
+      }
+
+
+      return `
+
+        <div class="card">
+
+          <div class="card-head">
+
+            <div>
+
+              <div class="pair">
+                ${x.pair || "UNKNOWN"}
+              </div>
+
+              <div class="sig ${signalClass}">
+                ${x.signal || "WAIT"}
+                ${
+                  x.score
+                    ? " — " + x.score + "/5"
+                    : ""
+                }
+              </div>
+
+            </div>
+
+            <span class="dot"></span>
+
+          </div>
+
+
+          <div class="details">
+            ${x.detail || ""}
+          </div>
+
+
+          ${tradeInfo}
+
+
+          <div class="meta">
+            Updated:
+            ${
+              x.updatedAt
+                ? new Date(x.updatedAt).toLocaleString()
+                : "—"
+            }
+          </div>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+
+  }catch(error){
+
+    document.getElementById("system").textContent =
+      "Offline";
+
+    document.getElementById("system").className =
+      "value red";
+
+    document.getElementById("lastScan").textContent =
+      "Unavailable";
+
+    document.getElementById("s").textContent =
+      "Cloud monitor unavailable";
+
+    document.getElementById("g").innerHTML = `
+
+      <div class="card">
+
+        <div class="sig offline">
+          OFFLINE
+        </div>
+
+        <div class="details">
+          Unable to connect to /api/status.
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+}
+
+
+/* Load immediately */
+loadDashboard();
+
+
+/* Refresh every 15 seconds */
+setInterval(loadDashboard,15000);
+
 </script>
 
 </body>
