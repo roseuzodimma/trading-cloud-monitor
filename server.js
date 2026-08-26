@@ -170,14 +170,37 @@ function multiTimeframeSignal(pair,h12,h1,m5){
     detail:`12H ${b12.bias} | 1H ${b1.bias} | Waiting for 5M confirmation`
   };
             }
-async function scan(){for(const p of pairs)try{let [h12,h1,m5]=await Promise.all([
-  let [h12,h1,m5]=await Promise.all([
-  getCachedCandles(p,"12h"),
-  getCachedCandles(p,"1h"),
-  getCachedCandles(p,"5min")
-]);
+async function scan(){
+  for(const p of pairs)try{
+    let [h12,h1,m5]=await Promise.all([
+      getCachedCandles(p,"12h"),
+      getCachedCandles(p,"1h"),
+      getCachedCandles(p,"5min")
+    ]);
 
-let s=multiTimeframeSignal(p,h12,h1,m5);state.pairs[p]={...s,updatedAt:new Date().toISOString()};if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){lastSignal[p]=s.signal;await notify(s)}}catch(e){state.pairs[p]={pair:p,signal:"OFFLINE",detail:e.message,updatedAt:new Date().toISOString()}}state.lastScan=new Date().toISOString()}
+    let s=multiTimeframeSignal(p,h12,h1,m5);
+
+    state.pairs[p]={
+      ...s,
+      updatedAt:new Date().toISOString()
+    };
+
+    if((s.signal==="STRONG BUY"||s.signal==="STRONG SELL")&&lastSignal[p]!==s.signal){
+      lastSignal[p]=s.signal;
+      await notify(s);
+    }
+
+  }catch(e){
+    state.pairs[p]={
+      pair:p,
+      signal:"OFFLINE",
+      detail:e.message,
+      updatedAt:new Date().toISOString()
+    };
+  }
+
+  state.lastScan=new Date().toISOString();
+}
 app.get("/api/status",(q,r)=>r.json({timeframe:INTERVAL,lastScan:state.lastScan,pairs:state.pairs}));
 app.get("/api/test-alert",async(q,r)=>{
   try{
