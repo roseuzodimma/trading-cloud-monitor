@@ -1,7 +1,7 @@
 const express=require("express");
 const path=require("path");
 const app=express(); app.use(express.json()); app.use(express.static(path.join(__dirname,"public")));
-const PORT=process.env.PORT||3000, API_KEY=process.env.TWELVE_DATA_API_KEY, INTERVAL=process.env.TIMEFRAME||"5min", POLL_MS=Math.max(1800000,Number(process.env.POLL_MS||60000));
+const PORT=process.env.PORT||3000, API_KEY=process.env.TWELVE_DATA_API_KEY, INTERVAL=process.env.TIMEFRAME||"5min", POLL_MS=Math.max(300000,Number(process.env.POLL_MS||300000))
 const pairs=["EUR/USD","GBP/USD","USD/CAD","XAU/USD","USD/CHF","EUR/GBP","GBP/CHF"], state={lastScan:null,pairs:{}}, lastSignal={};
 const tfCache = new Map();
 const TF_CACHE_MS = {
@@ -26,33 +26,77 @@ async function getCachedCandles(pair, interval) {
 function ema(a,p){let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
 function rsi(a,p=14){if(a.length<p+1)return 50;let g=0,l=0;for(let i=a.length-p;i<a.length;i++){let d=a[i]-a[i-1];if(d>=0)g+=d;else l-=d}if(!l)return 100;return 100-100/(1+(g/p)/(l/p))}
 function smc(c){
-  if(c.length<10)return{bias:"NEUTRAL",bos:false,sweep:false};
+  if(c.length<20)return{bias:"NEUTRAL",bos:false,sweep:false,strength:"WEAK"};
 
-  let h=c.map(x=>+x.high),l=c.map(x=>+x.low),cl=c.map(x=>+x.close);
-  let prevHigh=Math.max(...h.slice(-10,-2));
-  let prevLow=Math.min(...l.slice(-10,-2));
-  let lastHigh=h.at(-1),lastLow=l.at(-1),lastClose=cl.at(-1);
+  const h=c.map(x=>+x.high);
+  const l=c.map(x=>+x.low);
+  const cl=c.map(x=>+x.close);
 
-  let bullishBOS=lastClose>prevHigh;
-  let bearishBOS=lastClose<prevLow;
+  const recentHigh=Math.max(...h.slice(-20,-3));
+  const recentLow=Math.min(...l.slice(-20,-3));
 
-  let bullishSweep=lastLow<prevLow&&lastClose>prevLow;
-  let bearishSweep=lastHigh>prevHigh&&lastClose<prevHigh;
+  const lastClose=cl.at(-1);
+  const lastOpen=+c.at(-1).open;
+  const prevClose=cl.at(-2);
+  const prevOpen=+c.at(-2).open;
 
-  if(bullishBOS||bullishSweep)return{
-    bias:"BULLISH",
-    bos:bullishBOS,
-    sweep:bullishSweep
-  };
+  const bullishBOS=lastClose>recentHigh;
+  const bearishBOS=lastClose<recentLow;
 
-  if(bearishBOS||bearishSweep)return{
-    bias:"BEARISH",
-    bos:bearishBOS,
-    sweep:bearishSweep
-  };
+  const bullishSweep=+c.at(-1).low<recentLow&&lastClose>recentLow;
+  const bearishSweep=+c.at(-1).high>recentHigh&&lastClose<recentHigh;
 
-  return{bias:"NEUTRAL",bos:false,sweep:false};
+  const bullishCandles=
+    (lastClose>lastOpen?1:0)+
+    (prevClose>prevOpen?1:0);
+
+  const bearishCandles=
+    (lastClose<lastOpen?1:0)+
+    (prevClose<prevOpen?1:0);
+
+  if(bullishBOS&&bullishCandles>=1){
+    return{
+      bias:"BULLISH",
+      bos:true,
+      sweep:bullishSweep,
+      strength:"STRONG"
+    };
   }
+
+  if(bearishBOS&&bearishCandles>=1){
+    return{
+      bias:"BEARISH",
+      bos:true,
+      sweep:bearishSweep,
+      strength:"STRONG"
+    };
+  }
+
+  if(bullishSweep&&bullishCandles>=1){
+    return{
+      bias:"BULLISH",
+      bos:false,
+      sweep:true,
+      strength:"CONFIRMED"
+    };
+  }
+
+  if(bearishSweep&&bearishCandles>=1){
+    return{
+      bias:"BEARISH",
+      bos:false,
+      sweep:true,
+      strength:"CONFIRMED"
+    };
+  }
+
+  return{
+    bias:"NEUTRAL",
+    bos:false,
+    sweep:false,
+    strength:"WEAK"
+  };
+}
 function evaluate(pair,c){if(c.length<80)return{pair,signal:"WAIT",detail:"Not enough candles"};let b=c.map(x=>({open:+x.open,high:+x.high,low:+x.low,close:+x.close})),cl=b.map(x=>x.close),e20=ema(cl.slice(-80),20),e50=ema(cl.slice(-80),50),rs=rsi(cl.slice(-40),14),x=b.at(-1),look=b.slice(-21,-1),res=Math.max(...look.map(x=>x.high)),sup=Math.min(...look.map(x=>x.low));let buy=(x.close>e20&&e20>e50?1:0)+(rs>=55&&rs<=72?1:0)+(x.close>res&&x.close>x.open?1:0)+(x.close>res?1:0)+(x.close>b.at(-2).close?1:0),sell=(x.close<e20&&e20<e50?1:0)+(rs<=45&&rs>=28?1:0)+(x.close<sup&&x.close<x.open?1:0)+(x.close<sup?1:0)+(x.close<b.at(-2).close?1:0);if(buy>=4&&x.close>res){
   let entry=x.close;
   let sl=sup;
