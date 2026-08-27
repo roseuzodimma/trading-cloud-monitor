@@ -1221,16 +1221,13 @@ async function scan() {
       */
 
       if (
-
-        (
-          signal.signal === "STRONG BUY" ||
-          signal.signal === "STRONG SELL"
-        ) &&
-
-        lastSignal[p] !==
-          signal.signal
-
-      ) {
+  alertsEnabled &&
+  (
+    signal.signal === "STRONG BUY" ||
+    signal.signal === "STRONG SELL"
+  ) &&
+  lastSignal[p] !== signal.signal
+) {
 
         lastSignal[p] =
           signal.signal;
