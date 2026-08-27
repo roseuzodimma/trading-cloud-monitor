@@ -6,12 +6,41 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
 const PORT = process.env.PORT || 3000;
-const API_KEY = process.env.TWELVE_DATA_API_KEY;
-const INTERVAL = process.env.TIMEFRAME || "5min";
+
+const API_KEY =
+  process.env.TWELVE_DATA_API_KEY;
+
+const INTERVAL =
+  process.env.TIMEFRAME || "5min";
+
+/*
+  IMPORTANT:
+
+  We deliberately scan every 15 minutes instead of every
+  5 minutes for now.
+
+  This reduces Twelve Data usage substantially while we
+  stabilize the system.
+*/
 const POLL_MS = Math.max(
-  300000,
-  Number(process.env.POLL_MS || 300000)
+  900000,
+  Number(process.env.POLL_MS || 900000)
+);
+
+/*
+  Delay between API requests.
+
+  This prevents several requests from being fired
+  at Twelve Data at exactly the same moment.
+*/
+const REQUEST_DELAY_MS = Math.max(
+  1000,
+  Number(process.env.REQUEST_DELAY_MS || 1500)
 );
 
 const pairs = [
@@ -24,60 +53,94 @@ const pairs = [
   "GBP/CHF"
 ];
 
+
+/* =========================================================
+   STATE
+========================================================= */
+
 const state = {
+
   lastScan: null,
+
+  scanning: false,
+
   pairs: {},
+
   api: {
-    status: "READY",
+
+    status: API_KEY
+      ? "READY"
+      : "NOT CONFIGURED",
+
     lastError: null,
-    last429: null
+
+    last429: null,
+
+    cooldownUntil: null,
+
+    requestsThisScan: 0,
+
+    totalRequests: 0
   }
 };
 
+
+/* =========================================================
+   SIGNAL / ALERT STATE
+========================================================= */
+
 const lastSignal = {};
-const tfCache = new Map();
 
-const TF_CACHE_MS = {
-  "1h": 60 * 60 * 1000,
-  "5min": 5 * 60 * 1000
-};
-
-/*
-  When Twelve Data returns HTTP 429, don't immediately
-  keep hitting the API.
-
-  Five minutes is used as a local cooldown.
-*/
-let apiCooldownUntil = 0;
-const API_COOLDOWN_MS = 5 * 60 * 1000;
+let alertsEnabled = true;
 
 
 /* =========================================================
    CACHE
 ========================================================= */
 
-async function getCachedCandles(pair, interval) {
+const tfCache = new Map();
 
-  const key = `${pair}:${interval}`;
-  const now = Date.now();
+/*
+  1H candles are cached for one hour.
 
-  const cached = tfCache.get(key);
+  5M candles are cached for 15 minutes because the scanner
+  currently runs every 15 minutes.
+*/
+const TF_CACHE_MS = {
 
-  if (
-    cached &&
-    now - cached.time < TF_CACHE_MS[interval]
-  ) {
-    return cached.data;
-  }
+  "1h":
+    60 * 60 * 1000,
 
-  const data = await fetchCandles(pair, interval);
+  "5min":
+    15 * 60 * 1000
+};
 
-  tfCache.set(key, {
-    data,
-    time: now
-  });
 
-  return data;
+/* =========================================================
+   API COOLDOWN
+========================================================= */
+
+/*
+  If Twelve Data returns HTTP 429, we stop making requests
+  for five minutes.
+
+  This prevents the bot from repeatedly hitting the limit.
+*/
+const API_COOLDOWN_MS =
+  5 * 60 * 1000;
+
+let apiCooldownUntil = 0;
+
+
+/* =========================================================
+   UTILITY
+========================================================= */
+
+function sleep(ms) {
+
+  return new Promise(
+    resolve => setTimeout(resolve, ms)
+  );
 }
 
 
@@ -87,14 +150,24 @@ async function getCachedCandles(pair, interval) {
 
 function ema(a, p) {
 
-  if (!a.length) return 0;
+  if (!a.length) {
+    return 0;
+  }
 
-  const k = 2 / (p + 1);
+  const k =
+    2 / (p + 1);
 
   let e = a[0];
 
-  for (let i = 1; i < a.length; i++) {
-    e = a[i] * k + e * (1 - k);
+  for (
+    let i = 1;
+    i < a.length;
+    i++
+  ) {
+
+    e =
+      a[i] * k +
+      e * (1 - k);
   }
 
   return e;
@@ -107,31 +180,47 @@ function ema(a, p) {
 
 function rsi(a, p = 14) {
 
-  if (a.length < p + 1) {
+  if (
+    a.length <
+    p + 1
+  ) {
+
     return 50;
   }
 
-  let g = 0;
-  let l = 0;
+  let gains = 0;
+  let losses = 0;
 
-  for (let i = a.length - p; i < a.length; i++) {
+  for (
+    let i = a.length - p;
+    i < a.length;
+    i++
+  ) {
 
-    const d = a[i] - a[i - 1];
+    const difference =
+      a[i] - a[i - 1];
 
-    if (d >= 0) {
-      g += d;
+    if (difference >= 0) {
+
+      gains += difference;
+
     } else {
-      l -= d;
+
+      losses -= difference;
     }
   }
 
-  if (!l) {
+  if (!losses) {
     return 100;
   }
 
-  return 100 - 100 / (
-    1 + (g / p) / (l / p)
-  );
+  return 100 -
+    100 /
+    (
+      1 +
+      (gains / p) /
+      (losses / p)
+    );
 }
 
 
@@ -142,57 +231,117 @@ function rsi(a, p = 14) {
 function smc(c) {
 
   if (c.length < 20) {
+
     return {
+
       bias: "NEUTRAL",
+
       bos: false,
+
       sweep: false,
+
       strength: "WEAK"
     };
   }
 
-  const h = c.map(x => +x.high);
-  const l = c.map(x => +x.low);
-  const cl = c.map(x => +x.close);
+
+  const highs =
+    c.map(x => +x.high);
+
+  const lows =
+    c.map(x => +x.low);
+
+  const closes =
+    c.map(x => +x.close);
+
 
   /*
-    Exclude the current candle and the previous
-    two candles from the structure range.
+    Current candle and previous two candles are excluded
+    from the structure range.
   */
-  const recentHigh = Math.max(
-    ...h.slice(-20, -3)
-  );
 
-  const recentLow = Math.min(
-    ...l.slice(-20, -3)
-  );
+  const recentHigh =
+    Math.max(
+      ...highs.slice(-20, -3)
+    );
 
-  const lastClose = cl.at(-1);
-  const lastOpen = +c.at(-1).open;
+  const recentLow =
+    Math.min(
+      ...lows.slice(-20, -3)
+    );
 
-  const prevClose = cl.at(-2);
-  const prevOpen = +c.at(-2).open;
+
+  const last =
+    c.at(-1);
+
+  const previous =
+    c.at(-2);
+
+
+  const lastClose =
+    +last.close;
+
+  const lastOpen =
+    +last.open;
+
+  const previousClose =
+    +previous.close;
+
+  const previousOpen =
+    +previous.open;
+
 
   const bullishBOS =
-    lastClose > recentHigh;
+    lastClose >
+    recentHigh;
 
   const bearishBOS =
-    lastClose < recentLow;
+    lastClose <
+    recentLow;
+
 
   const bullishSweep =
-    +c.at(-1).low < recentLow &&
-    lastClose > recentLow;
+    +last.low <
+      recentLow &&
+    lastClose >
+      recentLow;
+
 
   const bearishSweep =
-    +c.at(-1).high > recentHigh &&
-    lastClose < recentHigh;
+    +last.high >
+      recentHigh &&
+    lastClose <
+      recentHigh;
+
 
   const bullishCandles =
-    (lastClose > lastOpen ? 1 : 0) +
-    (prevClose > prevOpen ? 1 : 0);
+    (
+      lastClose >
+      lastOpen
+        ? 1
+        : 0
+    ) +
+    (
+      previousClose >
+      previousOpen
+        ? 1
+        : 0
+    );
+
 
   const bearishCandles =
-    (lastClose < lastOpen ? 1 : 0) +
-    (prevClose < prevOpen ? 1 : 0);
+    (
+      lastClose <
+      lastOpen
+        ? 1
+        : 0
+    ) +
+    (
+      previousClose <
+      previousOpen
+        ? 1
+        : 0
+    );
 
 
   if (
@@ -201,9 +350,13 @@ function smc(c) {
   ) {
 
     return {
+
       bias: "BULLISH",
+
       bos: true,
+
       sweep: bullishSweep,
+
       strength: "STRONG"
     };
   }
@@ -215,9 +368,13 @@ function smc(c) {
   ) {
 
     return {
+
       bias: "BEARISH",
+
       bos: true,
+
       sweep: bearishSweep,
+
       strength: "STRONG"
     };
   }
@@ -229,9 +386,13 @@ function smc(c) {
   ) {
 
     return {
+
       bias: "BULLISH",
+
       bos: false,
+
       sweep: true,
+
       strength: "CONFIRMED"
     };
   }
@@ -243,154 +404,45 @@ function smc(c) {
   ) {
 
     return {
+
       bias: "BEARISH",
+
       bos: false,
+
       sweep: true,
+
       strength: "CONFIRMED"
     };
   }
 
 
   return {
+
     bias: "NEUTRAL",
+
     bos: false,
+
     sweep: false,
+
     strength: "WEAK"
   };
 }
 
 
 /* =========================================================
-   ORIGINAL EVALUATION FUNCTION
-   Kept for compatibility.
+   TWELVE DATA REQUEST
 ========================================================= */
 
-function evaluate(pair, c) {
-
-  if (c.length < 80) {
-    return {
-      pair,
-      signal: "WAIT",
-      detail: "Not enough candles"
-    };
-  }
-
-  const b = c.map(x => ({
-    open: +x.open,
-    high: +x.high,
-    low: +x.low,
-    close: +x.close
-  }));
-
-  const cl = b.map(x => x.close);
-
-  const e20 = ema(
-    cl.slice(-80),
-    20
-  );
-
-  const e50 = ema(
-    cl.slice(-80),
-    50
-  );
-
-  const rs = rsi(
-    cl.slice(-40),
-    14
-  );
-
-  const x = b.at(-1);
-
-  const look = b.slice(-21, -1);
-
-  const res = Math.max(
-    ...look.map(x => x.high)
-  );
-
-  const sup = Math.min(
-    ...look.map(x => x.low)
-  );
-
-
-  let buy =
-    (x.close > e20 && e20 > e50 ? 1 : 0) +
-    (rs >= 55 && rs <= 72 ? 1 : 0) +
-    (x.close > res && x.close > x.open ? 1 : 0) +
-    (x.close > res ? 1 : 0) +
-    (x.close > b.at(-2).close ? 1 : 0);
-
-
-  let sell =
-    (x.close < e20 && e20 < e50 ? 1 : 0) +
-    (rs <= 45 && rs >= 28 ? 1 : 0) +
-    (x.close < sup && x.close < x.open ? 1 : 0) +
-    (x.close < sup ? 1 : 0) +
-    (x.close < b.at(-2).close ? 1 : 0);
-
-
-  if (
-    buy >= 4 &&
-    x.close > res
-  ) {
-
-    const entry = x.close;
-    const sl = sup;
-    const risk = entry - sl;
-    const tp = entry + risk * 2;
-
-    return {
-      pair,
-      signal: "STRONG BUY",
-      score: buy,
-      entry: +entry.toFixed(5),
-      stopLoss: +sl.toFixed(5),
-      takeProfit: +tp.toFixed(5),
-      detail:
-        `Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakout ✓ R:R 1:2`
-    };
-  }
-
-
-  if (
-    sell >= 4 &&
-    x.close < sup
-  ) {
-
-    const entry = x.close;
-    const sl = res;
-    const risk = sl - entry;
-    const tp = entry - risk * 2;
-
-    return {
-      pair,
-      signal: "STRONG SELL",
-      score: sell,
-      entry: +entry.toFixed(5),
-      stopLoss: +sl.toFixed(5),
-      takeProfit: +tp.toFixed(5),
-      detail:
-        `Trend ✓ RSI ${rs.toFixed(1)} ✓ Breakdown ✓ R:R 1:2`
-    };
-  }
-
-
-  return {
-    pair,
-    signal: "WAIT",
-    score: Math.max(buy, sell),
-    detail:
-      `BUY ${buy}/5 • SELL ${sell}/5`
-  };
-}
-
-
-/* =========================================================
-   TWELVE DATA
-========================================================= */
-
-async function fetchCandles(pair, interval = INTERVAL) {
+async function fetchCandles(
+  pair,
+  interval = INTERVAL
+) {
 
   if (!API_KEY) {
+
+    state.api.status =
+      "NOT CONFIGURED";
+
     throw Error(
       "TWELVE_DATA_API_KEY is not configured"
     );
@@ -398,25 +450,38 @@ async function fetchCandles(pair, interval = INTERVAL) {
 
 
   /*
-    Don't repeatedly call Twelve Data while
-    we're inside the local 429 cooldown.
-  */
-  if (Date.now() < apiCooldownUntil) {
+    Global cooldown.
 
-    const remaining = Math.ceil(
-      (apiCooldownUntil - Date.now()) / 1000
-    );
+    If one request gets HTTP 429, no other pair should
+    immediately hammer the API.
+  */
+
+  if (
+    Date.now() <
+    apiCooldownUntil
+  ) {
+
+    const seconds =
+      Math.ceil(
+        (
+          apiCooldownUntil -
+          Date.now()
+        ) / 1000
+      );
 
     throw Error(
-      `Twelve Data rate-limit cooldown (${remaining}s)`
+      `Twelve Data rate-limit cooldown (${seconds}s)`
     );
   }
 
 
   /*
-    1H requires more candles because we use them
-    to construct the 12H timeframe locally.
+    Keep the request sizes reasonable.
+
+    1H needs more candles because we construct 12H
+    candles from the hourly data.
   */
+
   const outputSize =
     interval === "1h"
       ? 300
@@ -424,26 +489,55 @@ async function fetchCandles(pair, interval = INTERVAL) {
 
 
   const url =
-    `https://api.twelvedata.com/time_series` +
-    `?symbol=${encodeURIComponent(pair)}` +
-    `&interval=${encodeURIComponent(interval)}` +
-    `&outputsize=${outputSize}` +
-    `&apikey=${encodeURIComponent(API_KEY)}`;
+    "https://api.twelvedata.com/time_series" +
+    "?symbol=" +
+    encodeURIComponent(pair) +
+    "&interval=" +
+    encodeURIComponent(interval) +
+    "&outputsize=" +
+    outputSize +
+    "&apikey=" +
+    encodeURIComponent(API_KEY);
 
 
-  const response = await fetch(url);
+  state.api.requestsThisScan++;
+  state.api.totalRequests++;
 
 
-  if (response.status === 429) {
+  const response =
+    await fetch(url);
+
+
+  /*
+    Twelve Data rate limit.
+  */
+
+  if (
+    response.status === 429
+  ) {
 
     apiCooldownUntil =
-      Date.now() + API_COOLDOWN_MS;
+      Date.now() +
+      API_COOLDOWN_MS;
 
-    state.api.status = "RATE LIMITED";
+
+    state.api.status =
+      "RATE LIMITED";
+
+
     state.api.last429 =
       new Date().toISOString();
+
+
+    state.api.cooldownUntil =
+      new Date(
+        apiCooldownUntil
+      ).toISOString();
+
+
     state.api.lastError =
       "Twelve Data HTTP 429";
+
 
     throw Error(
       "Twelve Data HTTP 429 - API limit reached"
@@ -453,6 +547,14 @@ async function fetchCandles(pair, interval = INTERVAL) {
 
   if (!response.ok) {
 
+    state.api.status =
+      "API ERROR";
+
+    state.api.lastError =
+      "Twelve Data HTTP " +
+      response.status;
+
+
     throw Error(
       "Twelve Data HTTP " +
       response.status
@@ -460,29 +562,42 @@ async function fetchCandles(pair, interval = INTERVAL) {
   }
 
 
-  const data = await response.json();
+  const data =
+    await response.json();
 
 
-  if (data.status === "error") {
+  if (
+    data.status === "error"
+  ) {
 
-    /*
-      Some Twelve Data API errors can contain
-      rate-limit information even without HTTP 429.
-    */
     const message =
       data.message ||
       "Twelve Data error";
 
 
     if (
-      /limit|credit|rate/i.test(message)
+      /limit|credit|rate/i
+        .test(message)
     ) {
 
       apiCooldownUntil =
-        Date.now() + API_COOLDOWN_MS;
+        Date.now() +
+        API_COOLDOWN_MS;
+
 
       state.api.status =
         "RATE LIMITED";
+
+
+      state.api.last429 =
+        new Date().toISOString();
+
+
+      state.api.cooldownUntil =
+        new Date(
+          apiCooldownUntil
+        ).toISOString();
+
 
       state.api.lastError =
         message;
@@ -504,8 +619,14 @@ async function fetchCandles(pair, interval = INTERVAL) {
   }
 
 
-  state.api.status = "CONNECTED";
-  state.api.lastError = null;
+  state.api.status =
+    "CONNECTED";
+
+  state.api.lastError =
+    null;
+
+  state.api.cooldownUntil =
+    null;
 
 
   return data.values
@@ -515,187 +636,246 @@ async function fetchCandles(pair, interval = INTERVAL) {
 
 
 /* =========================================================
-   BUILD 12H CANDLES FROM 1H CANDLES
+   CACHED DATA
 ========================================================= */
 
-function build12HCandles(hourly) {
+async function getCachedCandles(
+  pair,
+  interval
+) {
+
+  const key =
+    `${pair}:${interval}`;
+
+  const now =
+    Date.now();
+
+  const cached =
+    tfCache.get(key);
+
+
+  if (
+    cached &&
+    now - cached.time <
+      TF_CACHE_MS[interval]
+  ) {
+
+    return cached.data;
+  }
+
+
+  /*
+    Wait between requests so we don't burst the API.
+  */
+
+  await sleep(
+    REQUEST_DELAY_MS
+  );
+
+
+  const data =
+    await fetchCandles(
+      pair,
+      interval
+    );
+
+
+  tfCache.set(
+    key,
+    {
+
+      data,
+
+      time: now
+    }
+  );
+
+
+  return data;
+}
+
+
+/* =========================================================
+   BUILD 12H CANDLES FROM 1H
+========================================================= */
+
+function build12HCandles(
+  hourly
+) {
 
   if (
     !Array.isArray(hourly) ||
     hourly.length < 12
   ) {
+
     return [];
   }
 
 
-  const groups = new Map();
+  const groups =
+    new Map();
 
 
-  for (const candle of hourly) {
+  for (
+    const candle of hourly
+  ) {
 
     const date =
-      new Date(candle.datetime);
+      new Date(
+        candle.datetime
+      );
 
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+
       continue;
     }
 
-
-    /*
-      UTC 12-hour buckets:
-
-      00:00 -> 11:00
-      12:00 -> 23:00
-    */
 
     const year =
       date.getUTCFullYear();
 
     const month =
-      String(date.getUTCMonth() + 1)
-        .padStart(2, "0");
+      String(
+        date.getUTCMonth() + 1
+      ).padStart(2, "0");
 
     const day =
-      String(date.getUTCDate())
-        .padStart(2, "0");
+      String(
+        date.getUTCDate()
+      ).padStart(2, "0");
+
 
     const hour =
       date.getUTCHours();
 
+
     const bucketHour =
-      hour < 12 ? 0 : 12;
+      hour < 12
+        ? 0
+        : 12;
 
 
     const key =
-      `${year}-${month}-${day} ${String(bucketHour).padStart(2, "0")}:00:00`;
+      `${year}-${month}-${day} ${String(
+        bucketHour
+      ).padStart(2, "0")}:00:00`;
 
 
-    if (!groups.has(key)) {
-      groups.set(key, []);
+    if (
+      !groups.has(key)
+    ) {
+
+      groups.set(
+        key,
+        []
+      );
     }
 
 
-    groups.get(key).push(candle);
+    groups
+      .get(key)
+      .push(candle);
   }
 
 
   const result = [];
 
 
-  for (const [datetime, candles] of groups) {
+  for (
+    const [
+      datetime,
+      candles
+    ] of groups
+  ) {
 
-    if (candles.length < 8) {
+    /*
+      Don't create a 12H candle from an incomplete
+      period. Eight hourly candles is the minimum
+      we accept for now.
+    */
+
+    if (
+      candles.length < 8
+    ) {
+
       continue;
     }
 
 
     candles.sort(
       (a, b) =>
-        new Date(a.datetime) -
-        new Date(b.datetime)
+        new Date(
+          a.datetime
+        ) -
+        new Date(
+          b.datetime
+        )
     );
 
 
-    const first = candles[0];
-    const last = candles[candles.length - 1];
+    const first =
+      candles[0];
+
+    const last =
+      candles[
+        candles.length - 1
+      ];
 
 
     result.push({
 
       datetime,
 
-      open: +first.open,
+      open:
+        +first.open,
 
-      high: Math.max(
-        ...candles.map(x => +x.high)
-      ),
+      high:
+        Math.max(
+          ...candles.map(
+            x => +x.high
+          )
+        ),
 
-      low: Math.min(
-        ...candles.map(x => +x.low)
-      ),
+      low:
+        Math.min(
+          ...candles.map(
+            x => +x.low
+          )
+        ),
 
-      close: +last.close,
+      close:
+        +last.close,
 
-      volume: candles.reduce(
-        (sum, x) =>
-          sum + (+x.volume || 0),
-        0
-      )
+      volume:
+        candles.reduce(
+          (sum, x) =>
+            sum +
+            (+x.volume || 0),
+          0
+        )
     });
   }
 
 
   return result.sort(
     (a, b) =>
-      new Date(a.datetime) -
-      new Date(b.datetime)
+      new Date(
+        a.datetime
+      ) -
+      new Date(
+        b.datetime
+      )
   );
 }
 
 
 /* =========================================================
-   TELEGRAM
-========================================================= */
-
-async function notify(s) {
-
-  if (!alertsEnabled) {
-    return;
-  }
-
-  const token =
-    process.env.TELEGRAM_BOT_TOKEN;
-
-  const chatId =
-    process.env.TELEGRAM_CHAT_ID;
-
-
-  if (!token || !chatId) {
-    return;
-  }
-
-
-  const message =
-`🚨 ${s.signal}: ${s.pair}
-Entry: ${s.entry}
-🛑 Stop Loss: ${s.stopLoss}
-🎯 Take Profit: ${s.takeProfit}
-⭐ Score: ${s.score}/5
-📊 ${s.detail}`;
-
-
-  const response =
-    await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
-      {
-        method: "POST",
-
-        headers: {
-          "content-type":
-            "application/json"
-        },
-
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message
-        })
-      }
-    );
-
-
-  if (!response.ok) {
-
-    throw Error(
-      "Telegram HTTP " +
-      response.status
-    );
-  }
-}
-
-
-/* =========================================================
-   MULTI TIMEFRAME SIGNAL
+   MULTI-TIMEFRAME SIGNAL
 ========================================================= */
 
 function multiTimeframeSignal(
@@ -712,71 +892,94 @@ function multiTimeframeSignal(
   ) {
 
     return {
+
       pair,
+
       signal: "WAIT",
+
       score: 0,
+
       detail:
         "Not enough timeframe data"
     };
   }
 
 
-  const b12 = smc(h12);
-  const b1 = smc(h1);
+  const b12 =
+    smc(h12);
+
+  const b1 =
+    smc(h1);
 
 
   const last =
-    m5[m5.length - 1];
+    m5.at(-1);
 
-  const prev =
-    m5[m5.length - 2];
+  const previous =
+    m5.at(-2);
 
 
-  if (!last || !prev) {
+  if (
+    !last ||
+    !previous
+  ) {
 
     return {
+
       pair,
+
       signal: "WAIT",
+
       score: 0,
+
       detail:
         "Not enough 5M candles"
     };
   }
 
 
-  const close = +last.close;
-  const open = +last.open;
-  const high = +last.high;
-  const low = +last.low;
+  const close =
+    +last.close;
+
+  const open =
+    +last.open;
+
+  const high =
+    +last.high;
+
+  const low =
+    +last.low;
 
 
-  const prevHigh =
-    +prev.high;
+  const previousHigh =
+    +previous.high;
 
-  const prevLow =
-    +prev.low;
+  const previousLow =
+    +previous.low;
 
 
   /*
-    IMPORTANT:
+    Previous 10 candles.
 
-    -11,-1 excludes the current candle.
-
-    Therefore the current candle cannot
-    artificially increase recentHigh or
-    recentLow.
+    Current candle is deliberately excluded.
   */
 
   const recent =
     m5.slice(-11, -1);
 
 
-  if (recent.length < 5) {
+  if (
+    recent.length < 5
+  ) {
 
     return {
+
       pair,
+
       signal: "WAIT",
+
       score: 0,
+
       detail:
         "Not enough 5M range candles"
     };
@@ -800,15 +1003,22 @@ function multiTimeframeSignal(
 
 
   const range =
-    recentHigh - recentLow;
+    recentHigh -
+    recentLow;
 
 
-  if (range <= 0) {
+  if (
+    range <= 0
+  ) {
 
     return {
+
       pair,
+
       signal: "WAIT",
+
       score: 0,
+
       detail:
         "Invalid 5M range"
     };
@@ -816,102 +1026,103 @@ function multiTimeframeSignal(
 
 
   /*
-    Bullish 5M confirmation:
+    Bullish confirmation.
 
-    Price pulls back into the lower
-    portion of the recent range,
-    then closes bullish and breaks
-    the previous candle high.
+    The current candle must:
+
+    1. Close bullish
+    2. Break previous candle high
+    3. Have interacted with the lower part of the range
   */
 
   const bullish5 =
     close > open &&
-    close > prevHigh &&
+    close > previousHigh &&
     low <=
       recentLow +
       range * 0.45;
 
 
   /*
-    Bearish 5M confirmation:
+    Bearish confirmation.
 
-    Price pulls upward into the upper
-    portion of the range,
-    then closes bearish and breaks
-    previous candle low.
+    The current candle must:
+
+    1. Close bearish
+    2. Break previous candle low
+    3. Have interacted with the upper part of the range
   */
 
   const bearish5 =
     close < open &&
-    close < prevLow &&
+    close < previousLow &&
     high >=
       recentHigh -
       range * 0.45;
 
 
   /*
-    Overextension protection.
-
-    The current candle IS included in the
-    extension calculation, because we are
-    measuring where the current entry sits
-    inside the previous 10-candle range.
-
-    That is intentional.
-
-    recentHigh/recentLow themselves exclude
-    the current candle.
+    Anti-late-entry protection.
   */
 
   const bullishExtension =
-    (close - recentLow) /
-    range;
+    (
+      close -
+      recentLow
+    ) / range;
 
 
   const bearishExtension =
-    (recentHigh - close) /
-    range;
+    (
+      recentHigh -
+      close
+    ) / range;
 
 
   const buyNotExtended =
-    bullishExtension <= 0.80;
+    bullishExtension <=
+    0.80;
 
 
   const sellNotExtended =
-    bearishExtension <= 0.80;
+    bearishExtension <=
+    0.80;
 
 
-  /*
-    BUY:
-    12H bullish
-    +
-    1H bullish
-    +
-    5M confirmation
-    +
-    not overextended
-  */
-
-  if (
-
+  const higherBullish =
     b12.bias === "BULLISH" &&
-
     (
       b12.strength === "STRONG" ||
       b12.strength === "CONFIRMED"
     ) &&
-
     b1.bias === "BULLISH" &&
-
     (
       b1.strength === "STRONG" ||
       b1.strength === "CONFIRMED"
+    );
+
+
+  const higherBearish =
+    b12.bias === "BEARISH" &&
+    (
+      b12.strength === "STRONG" ||
+      b12.strength === "CONFIRMED"
     ) &&
+    b1.bias === "BEARISH" &&
+    (
+      b1.strength === "STRONG" ||
+      b1.strength === "CONFIRMED"
+    );
 
+
+  /* =======================================================
+     BUY
+  ======================================================= */
+
+  if (
+    higherBullish &&
     bullish5 &&
-
     buyNotExtended
-
   ) {
 
     const sl =
@@ -922,12 +1133,18 @@ function multiTimeframeSignal(
       close - sl;
 
 
-    if (risk <= 0) {
+    if (
+      risk <= 0
+    ) {
 
       return {
+
         pair,
+
         signal: "WAIT",
+
         score: 0,
+
         detail:
           "Invalid BUY risk"
       };
@@ -935,7 +1152,8 @@ function multiTimeframeSignal(
 
 
     const tp =
-      close + risk * 2;
+      close +
+      risk * 2;
 
 
     return {
@@ -962,37 +1180,14 @@ function multiTimeframeSignal(
   }
 
 
-  /*
-    SELL:
-    12H bearish
-    +
-    1H bearish
-    +
-    5M confirmation
-    +
-    not overextended
-  */
+  /* =======================================================
+     SELL
+  ======================================================= */
 
   if (
-
-    b12.bias === "BEARISH" &&
-
-    (
-      b12.strength === "STRONG" ||
-      b12.strength === "CONFIRMED"
-    ) &&
-
-    b1.bias === "BEARISH" &&
-
-    (
-      b1.strength === "STRONG" ||
-      b1.strength === "CONFIRMED"
-    ) &&
-
+    higherBearish &&
     bearish5 &&
-
     sellNotExtended
-
   ) {
 
     const sl =
@@ -1003,12 +1198,18 @@ function multiTimeframeSignal(
       sl - close;
 
 
-    if (risk <= 0) {
+    if (
+      risk <= 0
+    ) {
 
       return {
+
         pair,
+
         signal: "WAIT",
+
         score: 0,
+
         detail:
           "Invalid SELL risk"
       };
@@ -1016,7 +1217,8 @@ function multiTimeframeSignal(
 
 
     const tp =
-      close - risk * 2;
+      close -
+      risk * 2;
 
 
     return {
@@ -1059,392 +1261,228 @@ function multiTimeframeSignal(
 
 
 /* =========================================================
+   TELEGRAM
+========================================================= */
+
+async function notify(signal) {
+
+  const token =
+    process.env.TELEGRAM_BOT_TOKEN;
+
+  const chatId =
+    process.env.TELEGRAM_CHAT_ID;
+
+
+  if (
+    !token ||
+    !chatId
+  ) {
+
+    return;
+  }
+
+
+  const message =
+`🚨 ${signal.signal}: ${signal.pair}
+Entry: ${signal.entry}
+🛑 Stop Loss: ${signal.stopLoss}
+🎯 Take Profit: ${signal.takeProfit}
+⭐ Score: ${signal.score}/5
+📊 ${signal.detail}`;
+
+
+  const response =
+    await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+
+        method: "POST",
+
+        headers: {
+
+          "content-type":
+            "application/json"
+        },
+
+        body:
+          JSON.stringify({
+
+            chat_id:
+              chatId,
+
+            text:
+              message
+          })
+      }
+    );
+
+
+  if (
+    !response.ok
+  ) {
+
+    throw Error(
+      "Telegram HTTP " +
+      response.status
+    );
+  }
+}
+
+
+/* =========================================================
    SCAN
 ========================================================= */
 
 async function scan() {
 
-  state.api.status = "SCANNING";
+  /*
+    Prevent overlapping scans.
 
+    This is important because a slow API request must not
+    cause another scan to start on top of it.
+  */
 
-  for (const p of pairs) {
+  if (
+    state.scanning
+  ) {
 
-    try {
-
-      /*
-        STEP 1
-
-        Only fetch 1H.
-
-        12H will be built locally from
-        the 1H candles.
-      */
-
-      const h1 =
-        await getCachedCandles(
-          p,
-          "1h"
-        );
-
-
-      const h12 =
-        build12HCandles(h1);
-
-
-      if (
-        h12.length < 20 ||
-        h1.length < 20
-      ) {
-
-        state.pairs[p] = {
-
-          pair: p,
-
-          signal: "WAIT",
-
-          score: 0,
-
-          detail:
-            "Waiting for enough 1H/12H candles",
-
-          updatedAt:
-            new Date().toISOString()
-        };
-
-        continue;
-      }
-
-
-      /*
-        Check the higher timeframes FIRST.
-
-        This means we don't waste a 5M request
-        if the 12H and 1H directions disagree.
-      */
-
-      const b12 =
-        smc(h12);
-
-      const b1 =
-        smc(h1);
-
-
-      const higherBullish =
-        b12.bias === "BULLISH" &&
-        (
-          b12.strength === "STRONG" ||
-          b12.strength === "CONFIRMED"
-        ) &&
-        b1.bias === "BULLISH" &&
-        (
-          b1.strength === "STRONG" ||
-          b1.strength === "CONFIRMED"
-        );
-
-
-      const higherBearish =
-        b12.bias === "BEARISH" &&
-        (
-          b12.strength === "STRONG" ||
-          b12.strength === "CONFIRMED"
-        ) &&
-        b1.bias === "BEARISH" &&
-        (
-          b1.strength === "STRONG" ||
-          b1.strength === "CONFIRMED"
-        );
-
-
-      /*
-        If higher timeframes don't agree,
-        there is no reason to request 5M.
-      */
-
-      if (
-        !higherBullish &&
-        !higherBearish
-      ) {
-
-        state.pairs[p] = {
-
-          pair: p,
-
-          signal: "WAIT",
-
-          score: 0,
-
-          detail:
-            `12H ${b12.bias} | 1H ${b1.bias} | Higher timeframes not aligned`,
-
-          updatedAt:
-            new Date().toISOString()
-        };
-
-        continue;
-      }
-
-
-      /*
-        STEP 2
-
-        Only now fetch 5M.
-      */
-
-      const m5 =
-        await getCachedCandles(
-          p,
-          "5min"
-        );
-
-
-      const signal =
-        multiTimeframeSignal(
-          p,
-          h12,
-          h1,
-          m5
-        );
-
-
-      state.pairs[p] = {
-
-        ...signal,
-
-        updatedAt:
-          new Date().toISOString()
-      };
-
-
-      /*
-        Prevent duplicate Telegram alerts
-        for the same direction.
-      */
-
-      if (
-  alertsEnabled &&
-  (
-    signal.signal === "STRONG BUY" ||
-    signal.signal === "STRONG SELL"
-  ) &&
-  lastSignal[p] !== signal.signal
-) {
-
-        lastSignal[p] =
-          signal.signal;
-
-        try {
-
-          await notify(signal);
-
-        } catch (telegramError) {
-
-          console.error(
-            "Telegram error:",
-            telegramError.message
-          );
-        }
-      }
-
-    } catch (e) {
-
-      state.pairs[p] = {
-
-        pair: p,
-
-        signal:
-          "OFFLINE",
-
-        detail:
-          e.message,
-
-        updatedAt:
-          new Date().toISOString()
-      };
-
-      console.error(
-        `${p}: ${e.message}`
-      );
-    }
-  }
-
-
-  state.lastScan =
-    new Date().toISOString();
-
-
-  state.api.lastError =
-    state.api.lastError || null;
-}
-
-
-/* =========================================================
-   DASHBOARD STATUS
-========================================================= */
-
-app.get(
-  "/api/status",
-  (q, r) => {
-
-    r.json({
-
-      timeframe:
-        INTERVAL,
-
-      lastScan:
-        state.lastScan,
-
-      api:
-        state.api,
-
-      pairs:
-        state.pairs
-    });
-  }
-);
-
-
-/* =========================================================
-   TELEGRAM TEST
-========================================================= */
-
-app.get(
-  "/api/test-alert",
-  async (q, r) => {
-
-    try {
-
-      await notify({
-
-        signal:
-          "TEST ALERT",
-
-        pair:
-          "SYSTEM",
-
-        entry:
-          "—",
-
-        stopLoss:
-          "—",
-
-        takeProfit:
-          "—",
-
-        score:
-          5,
-
-        detail:
-          "Telegram connection is working."
-      });
-
-
-      r.json({
-
-        ok: true,
-
-        message:
-          "Test alert sent."
-      });
-
-    } catch (e) {
-
-      r.status(500).json({
-
-        ok: false,
-
-        error:
-          e.message
-      });
-    }
-  }
-);
-
-
-/* =========================================================
-   ALERT STATUS
-========================================================= */
-
-let alertsEnabled = true;
-
-
-app.get(
-  "/api/alerts",
-  (q, r) => {
-
-    r.json({
-      enabled:
-        alertsEnabled
-    });
-  }
-);
-
-
-app.post(
-  "/api/alerts",
-  (q, r) => {
-
-    alertsEnabled =
-      Boolean(q.body?.enabled);
-
-    r.json({
-
-      ok: true,
-
-      enabled:
-        alertsEnabled
-    });
-  }
-);
-
-
-/* =========================================================
-   HEALTH
-========================================================= */
-
-app.get(
-  "/health",
-  (q, r) => {
-
-    r.json({
-      ok: true
-    });
-  }
-);
-
-
-/* =========================================================
-   DASHBOARD FALLBACK
-========================================================= */
-
-app.use(
-  (q, r) =>
-    r.sendFile(
-      path.join(
-        __dirname,
-        "public",
-        "index.html"
-      )
-    )
-);
-
-
-/* =========================================================
-   START
-========================================================= */
-
-scan();
-
-setInterval(
-  scan,
-  POLL_MS
-);
-
-
-app.listen(
-  PORT,
-  () =>
     console.log(
-      "Cloud monitor running on " +
-      PORT
-    )
-);
+      "Scan already running. Skipping."
+    );
+
+    return;
+  }
+
+
+  state.scanning =
+    true;
+
+  state.api.requestsThisScan =
+    0;
+
+
+  try {
+
+    /*
+      If the API is currently rate limited, don't loop
+      through all seven pairs generating seven identical
+      errors.
+    */
+
+    if (
+      Date.now() <
+      apiCooldownUntil
+    ) {
+
+      const seconds =
+        Math.ceil(
+          (
+            apiCooldownUntil -
+            Date.now()
+          ) / 1000
+        );
+
+
+      state.api.status =
+        "RATE LIMITED";
+
+
+      for (
+        const pair of pairs
+      ) {
+
+        state.pairs[pair] = {
+
+          pair,
+
+          signal:
+            "DATA WAIT",
+
+          score: 0,
+
+          detail:
+            `Twelve Data rate limit cooldown (${seconds}s)`,
+
+          updatedAt:
+            new Date().toISOString()
+        };
+      }
+
+
+      return;
+    }
+
+
+    /*
+      ======================================================
+      PROCESS PAIRS ONE AT A TIME
+      ======================================================
+    */
+
+    for (
+      const pair of pairs
+    ) {
+
+      try {
+
+        /*
+          First get 1H.
+
+          The 12H timeframe is constructed locally from
+          the hourly candles, saving a separate 12H request.
+        */
+
+        const h1 =
+          await getCachedCandles(
+            pair,
+            "1h"
+          );
+
+
+        const h12 =
+          build12HCandles(
+            h1
+          );
+
+
+        if (
+          h12.length < 20 ||
+          h1.length < 20
+        ) {
+
+          state.pairs[pair] = {
+
+            pair,
+
+            signal:
+              "WAIT",
+
+            score: 0,
+
+            detail:
+              "Waiting for enough 1H/12H candles",
+
+            updatedAt:
+              new Date().toISOString()
+          };
+
+
+          continue;
+        }
+
+
+        /*
+          Determine higher-timeframe direction BEFORE
+          requesting 5M data.
+        */
+
+        const b12 =
+          smc(h12);
+
+        const b1 =
+          smc(h1);
+
+
+        const higherBullish =
+          b12.bias === "BULLISH" &&
+  
