@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="en">
-<head>
+  <head>
+  <style>
+.alert-button {
+  border: none;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.alert-on {
+  background: #16a34a;
+  color: white;
+}
+
+.alert-off {
+  background: #dc2626;
+  color: white;
+}
+  </style>  
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Trading Cloud Monitor</title>
@@ -317,10 +337,10 @@ h1{
     </div>
 
     <div class="box">
-      <div class="label">Alerts</div>
-      <div class="value purple">
-        OFF
-      </div>
+  <div class="label">Alerts</div>
+  <button id="alertToggle" class="alert-button" type="button">
+    Loading...
+  </button>
     </div>
 
     <div class="box">
@@ -589,4 +609,60 @@ setInterval(loadDashboard,15000);
 </script>
 
 </body>
+  <script>
+const alertToggle = document.getElementById("alertToggle");
+
+async function loadAlertStatus() {
+  try {
+    const response = await fetch("/api/alerts");
+    const data = await response.json();
+
+    updateAlertButton(data.enabled);
+  } catch (error) {
+    alertToggle.textContent = "ERROR";
+  }
+}
+
+function updateAlertButton(enabled) {
+  if (enabled) {
+    alertToggle.textContent = "ON";
+    alertToggle.className = "alert-button alert-on";
+  } else {
+    alertToggle.textContent = "OFF";
+    alertToggle.className = "alert-button alert-off";
+  }
+}
+
+alertToggle.addEventListener("click", async () => {
+  alertToggle.disabled = true;
+
+  try {
+    const response = await fetch("/api/alerts");
+    const data = await response.json();
+
+    const result = await fetch("/api/alerts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        enabled: !data.enabled
+      })
+    });
+
+    const updated = await result.json();
+
+    if (updated.ok) {
+      updateAlertButton(updated.enabled);
+    }
+
+  } catch (error) {
+    alertToggle.textContent = "ERROR";
+  }
+
+  alertToggle.disabled = false;
+});
+
+loadAlertStatus();
+  </script>
 </html>
