@@ -1,4 +1,11 @@
-const express = require("express");
+app.listen(
+  PORT,
+  () =>
+    console.log(
+      "Cloud monitor running on " +
+      PORT
+    )
+);
 const path = require("path");
 
 const app = express();
