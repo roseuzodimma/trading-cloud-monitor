@@ -640,6 +640,10 @@ function build12HCandles(hourly) {
 
 async function notify(s) {
 
+  if (!alertsEnabled) {
+    return;
+  }
+
   const token =
     process.env.TELEGRAM_BOT_TOKEN;
 
