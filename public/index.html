@@ -1,39 +1,24 @@
 <!doctype html>
+
 <html lang="en">
-  <head>
-  <style>
-.alert-button {
-  border: none;
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-weight: bold;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.alert-on {
-  background: #16a34a;
-  color: white;
-}
-
-.alert-off {
-  background: #dc2626;
-  color: white;
-}
-  </style>  
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Trading Cloud Monitor</title>
-
-<style>
-*{box-sizing:border-box}
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Trading Cloud Monitor</title><style>
+*{
+  box-sizing:border-box;
+}
 
 body{
   font-family:Arial,sans-serif;
   margin:0;
   padding:18px;
   color:#eef4ff;
-  background:linear-gradient(135deg,#061226 0%,#0a1933 52%,#07101f 100%);
+  background:linear-gradient(
+    135deg,
+    #061226 0%,
+    #0a1933 52%,
+    #07101f 100%
+  );
   min-height:100vh;
 }
 
@@ -41,6 +26,8 @@ body{
   max-width:1150px;
   margin:auto;
 }
+
+/* HEADER */
 
 .header{
   display:flex;
@@ -88,6 +75,12 @@ h1{
   cursor:pointer;
 }
 
+.refresh:hover{
+  background:#17335d;
+}
+
+/* SUMMARY */
+
 .summary{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -97,7 +90,8 @@ h1{
 
 .box,
 .section,
-.card{
+.card,
+.action{
   background:rgba(13,28,50,.9);
   border:1px solid #203b62;
   border-radius:14px;
@@ -121,11 +115,54 @@ h1{
   margin-top:7px;
 }
 
-.green{color:#19e68a}
-.blue{color:#55a8ff}
-.purple{color:#bd7cff}
-.orange{color:#ffb52e}
-.red{color:#ff5b65}
+.green{
+  color:#19e68a;
+}
+
+.blue{
+  color:#55a8ff;
+}
+
+.purple{
+  color:#bd7cff;
+}
+
+.orange{
+  color:#ffb52e;
+}
+
+.red{
+  color:#ff5b65;
+}
+
+/* ALERT BUTTON */
+
+.alert-button{
+  border:none;
+  padding:8px 20px;
+  border-radius:20px;
+  font-weight:bold;
+  cursor:pointer;
+  font-size:14px;
+  margin-top:7px;
+}
+
+.alert-on{
+  background:#16a34a;
+  color:white;
+}
+
+.alert-off{
+  background:#dc2626;
+  color:white;
+}
+
+.alert-button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* SECTION */
 
 .section{
   padding:16px;
@@ -148,14 +185,22 @@ h1{
   font-size:12px;
 }
 
+/* PAIR GRID */
+
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
   gap:11px;
 }
 
 .card{
   padding:15px;
+  transition:.2s;
+}
+
+.card:hover{
+  transform:translateY(-2px);
+  border-color:#315d91;
 }
 
 .card-head{
@@ -175,10 +220,21 @@ h1{
   margin:6px 0;
 }
 
-.wait{color:#ffbf2f}
-.buy{color:#19e68a}
-.sell{color:#ff5b65}
-.offline{color:#ff9f43}
+.wait{
+  color:#ffbf2f;
+}
+
+.buy{
+  color:#19e68a;
+}
+
+.sell{
+  color:#ff5b65;
+}
+
+.offline{
+  color:#ff9f43;
+}
 
 .meta{
   font-size:12px;
@@ -191,7 +247,7 @@ h1{
   margin-top:11px;
   color:#c7d7ee;
   font-size:13px;
-  line-height:1.45;
+  line-height:1.5;
 }
 
 .dot{
@@ -201,6 +257,54 @@ h1{
   display:inline-block;
   background:#ffbf2f;
 }
+
+.dot.buy-dot{
+  background:#19e68a;
+}
+
+.dot.sell-dot{
+  background:#ff5b65;
+}
+
+.dot.offline-dot{
+  background:#ff9f43;
+}
+
+/* TIMEFRAME */
+
+.timeframes{
+  margin-top:13px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:7px;
+}
+
+.tf{
+  background:#0a1b33;
+  border:1px solid #1d3658;
+  border-radius:9px;
+  padding:8px;
+  text-align:center;
+}
+
+.tf-title{
+  color:#7894b7;
+  font-size:10px;
+  margin-bottom:5px;
+}
+
+.tf-value{
+  font-size:12px;
+  font-weight:bold;
+}
+
+.tf-rsi{
+  color:#8fa8c8;
+  font-size:10px;
+  margin-top:4px;
+}
+
+/* TRADE */
 
 .trade{
   margin-top:12px;
@@ -217,7 +321,56 @@ h1{
   display:block;
   color:#f2f7ff;
   margin-top:4px;
+  font-size:13px;
 }
+
+/* ANALYSIS */
+
+.analysis{
+  margin-top:11px;
+  padding:10px;
+  border-radius:9px;
+  background:#091a30;
+  border:1px solid #1c3555;
+  font-size:11px;
+  line-height:1.7;
+  color:#9fb6d4;
+}
+
+.analysis span{
+  color:#e6effc;
+}
+
+/* PERFORMANCE */
+
+.performance{
+  margin-top:18px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+
+.perf{
+  padding:13px;
+  background:rgba(13,28,50,.9);
+  border:1px solid #203b62;
+  border-radius:12px;
+  text-align:center;
+}
+
+.perf-number{
+  font-size:19px;
+  font-weight:bold;
+  margin-top:5px;
+}
+
+.perf-label{
+  color:#8198b8;
+  font-size:10px;
+  text-transform:uppercase;
+}
+
+/* ACTIONS */
 
 .actions{
   display:grid;
@@ -228,9 +381,6 @@ h1{
 
 .action{
   padding:17px;
-  background:rgba(13,28,50,.9);
-  border:1px solid #203b62;
-  border-radius:14px;
 }
 
 .action h3{
@@ -245,6 +395,29 @@ h1{
   line-height:1.4;
 }
 
+/* API */
+
+.api-box{
+  margin-top:18px;
+  padding:15px;
+  background:rgba(13,28,50,.9);
+  border:1px solid #203b62;
+  border-radius:14px;
+}
+
+.api-title{
+  font-weight:bold;
+  margin-bottom:9px;
+}
+
+.api-status{
+  font-size:13px;
+  color:#8fa8c8;
+  line-height:1.6;
+}
+
+/* FOOTER */
+
 .footer{
   text-align:center;
   color:#627b9e;
@@ -252,17 +425,30 @@ h1{
   margin:18px 0 4px;
 }
 
-@media(max-width:800px){
+/* MOBILE */
+
+@media(max-width:900px){
+
   .summary{
     grid-template-columns:1fr 1fr;
   }
 
+  .performance{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+}
+
+@media(max-width:800px){
+
   .actions{
     grid-template-columns:1fr;
   }
+
 }
 
 @media(max-width:480px){
+
   body{
     padding:12px;
   }
@@ -279,6 +465,10 @@ h1{
     display:none;
   }
 
+  .summary{
+    grid-template-columns:1fr 1fr;
+  }
+
   .grid{
     grid-template-columns:1fr;
   }
@@ -286,299 +476,856 @@ h1{
   .trade{
     grid-template-columns:1fr 1fr;
   }
+
+  .timeframes{
+    grid-template-columns:1fr 1fr 1fr;
+  }
+
+  .performance{
+    grid-template-columns:1fr 1fr;
+  }
+
 }
-</style>
-</head>
+</style></head><body><div class="wrap"><!-- HEADER --><div class="header">  <div class="brand"><div class="logo">📡</div>
 
-<body>
+<div>
 
-<div class="wrap">
+  <h1>Trading Cloud Monitor</h1>
 
-  <div class="header">
-
-    <div class="brand">
-
-      <div class="logo">📡</div>
-
-      <div>
-        <h1>Trading Cloud Monitor</h1>
-        <div class="subtitle">
-          Smart Money Concepts • Multi-Timeframe
-        </div>
-      </div>
-
-    </div>
-
-    <div class="online">
-      ● System Online
-    </div>
-
-    <button class="refresh" onclick="loadDashboard()">
-      ↻
-    </button>
-
-  </div>
-
-
-  <div class="summary">
-
-    <div class="box">
-      <div class="label">System Status</div>
-      <div class="value green" id="system">
-        Online
-      </div>
-    </div>
-
-    <div class="box">
-      <div class="label">Monitored Pairs</div>
-      <div class="value blue" id="pairCount">
-        0
-      </div>
-    </div>
-
-    <div class="box">
-  <div class="label">Alerts</div>
-  <button id="alertToggle" class="alert-button" type="button">
-    Loading...
-  </button>
-    </div>
-
-    <div class="box">
-      <div class="label">Last Scan</div>
-      <div class="value orange" id="lastScan">
-        Starting…
-      </div>
-    </div>
-
-  </div>
-
-
-  <div class="section">
-
-    <div class="section-title">
-
-      <h2>
-        🌐 Market Pairs Status
-      </h2>
-
-      <div class="auto">
-        ● Auto Refresh
-      </div>
-
-    </div>
-
-
-    <div id="s" class="meta">
-      Loading…
-    </div>
-
-
-    <div id="g" class="grid"></div>
-
-  </div>
-
-
-  <div class="actions">
-
-    <div class="action">
-
-      <h3>
-        📈 Signal Performance & Backtest
-      </h3>
-
-      <p>
-        Test the same signal rules on historical candles
-        before trusting them with real money.
-      </p>
-
-    </div>
-
-
-    <div class="action">
-
-      <h3>
-        🛡️ Stop Loss & Take Profit
-      </h3>
-
-      <p>
-        Live signals continue to use the existing
-        Entry, Stop Loss and Take Profit calculations.
-      </p>
-
-    </div>
-
-  </div>
-
-
-  <div class="footer">
-    © 2026 Trading Cloud Monitor. All rights reserved.
+  <div class="subtitle">
+    Smart Money Concepts • Multi-Timeframe
   </div>
 
 </div>
 
+  </div>  <div class="online" id="onlineText">
+    ● System Online
+  </div><button
+class="refresh"
+onclick="loadDashboard()"
+title="Refresh dashboard"
 
-<script>
+«»
+
+↻
+
+  </button></div><!-- SUMMARY --><div class="summary">  <div class="box"><div class="label">
+  System Status
+</div>
+
+<div
+  class="value green"
+  id="system"
+>
+  Connecting…
+</div>
+
+  </div>  <div class="box"><div class="label">
+  Monitored Pairs
+</div>
+
+<div
+  class="value blue"
+  id="pairCount"
+>
+  0
+</div>
+
+  </div>  <div class="box"><div class="label">
+  Telegram Alerts
+</div>
+
+<button
+  id="alertToggle"
+  class="alert-button"
+  type="button"
+>
+  Loading...
+</button>
+
+  </div>  <div class="box"><div class="label">
+  Last Scan
+</div>
+
+<div
+  class="value orange"
+  id="lastScan"
+>
+  Starting…
+</div>
+
+  </div></div><!-- MARKET --><div class="section">  <div class="section-title"><h2>
+  🌐 Market Pairs Status
+</h2>
+
+<div class="auto">
+  ● Auto Refresh
+</div>
+
+  </div>  <div
+    id="s"
+    class="meta"
+  >
+    Connecting to trading engine…
+  </div>  <div
+    id="g"
+    class="grid"
+  >
+  </div></div><!-- PERFORMANCE --><div class="performance">  <div class="perf"><div class="perf-label">
+  Total Signals
+</div>
+
+<div
+  class="perf-number blue"
+  id="totalSignals"
+>
+  0
+</div>
+
+  </div>  <div class="perf"><div class="perf-label">
+  BUY
+</div>
+
+<div
+  class="perf-number green"
+  id="buys"
+>
+  0
+</div>
+
+  </div>  <div class="perf"><div class="perf-label">
+  SELL
+</div>
+
+<div
+  class="perf-number red"
+  id="sells"
+>
+  0
+</div>
+
+  </div>  <div class="perf"><div class="perf-label">
+  Wins
+</div>
+
+<div
+  class="perf-number green"
+  id="wins"
+>
+  0
+</div>
+
+  </div>  <div class="perf"><div class="perf-label">
+  Losses
+</div>
+
+<div
+  class="perf-number red"
+  id="losses"
+>
+  0
+</div>
+
+  </div></div><!-- API STATUS --><div class="api-box">  <div class="api-title">
+    🔌 Data Connection
+  </div>  <div
+    class="api-status"
+    id="apiStatus"
+  >
+    Checking Twelve Data connection…
+  </div></div><!-- ACTIONS --><div class="actions">  <div class="action"><h3>
+  📈 Multi-Timeframe Signal Engine
+</h3>
+
+<p>
+  Signals require alignment between the
+  12H, 1H and 5M market structure before
+  a strong BUY or SELL signal is generated.
+</p>
+
+  </div>  <div class="action"><h3>
+  🛡️ Stop Loss & Take Profit
+</h3>
+
+<p>
+  Entry, Stop Loss and Take Profit are
+  calculated automatically using market
+  structure and ATR with a 1:2 risk/reward.
+</p>
+
+  </div></div><div class="footer">© 2026 Trading Cloud Monitor. All rights reserved.
+
+</div></div><script>
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+let currentAlertState = true;
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function escapeHTML(value){
+
+  if(value === null || value === undefined){
+    return "";
+  }
+
+  return String(value)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+
+function formatTime(value){
+
+  if(!value){
+    return "—";
+  }
+
+  try{
+
+    return new Date(value)
+      .toLocaleString();
+
+  }catch(error){
+
+    return "—";
+
+  }
+
+}
+
+
+function formatPrice(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+    return "—";
+  }
+
+  return escapeHTML(value);
+
+}
+
+
+/* =========================================================
+   SIGNAL CLASS
+========================================================= */
+
+function getSignalClass(status){
+
+  if(status === "BUY"){
+    return "buy";
+  }
+
+  if(status === "SELL"){
+    return "sell";
+  }
+
+  if(status === "OFFLINE"){
+    return "offline";
+  }
+
+  return "wait";
+}
+
+
+function getDotClass(status){
+
+  if(status === "BUY"){
+    return "buy-dot";
+  }
+
+  if(status === "SELL"){
+    return "sell-dot";
+  }
+
+  if(status === "OFFLINE"){
+    return "offline-dot";
+  }
+
+  return "";
+}
+
+
+/* =========================================================
+   TIMEFRAME CARD
+========================================================= */
+
+function timeframeHTML(
+  title,
+  timeframe
+){
+
+  if(!timeframe){
+    timeframe = {
+      trend:"UNKNOWN",
+      rsi:null
+    };
+  }
+
+  return `
+
+    <div class="tf">
+
+      <div class="tf-title">
+        ${title}
+      </div>
+
+      <div class="tf-value">
+        ${escapeHTML(
+          timeframe.trend || "UNKNOWN"
+        )}
+      </div>
+
+      <div class="tf-rsi">
+        RSI:
+        ${
+          timeframe.rsi !== null &&
+          timeframe.rsi !== undefined
+            ? escapeHTML(timeframe.rsi)
+            : "—"
+        }
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* =========================================================
+   PAIR CARD
+========================================================= */
+
+function pairCard(x){
+
+  const status =
+    x.status || "WAIT";
+
+  const signalClass =
+    getSignalClass(status);
+
+  const dotClass =
+    getDotClass(status);
+
+  const score =
+    Number.isFinite(Number(x.score))
+      ? `${x.score}/5`
+      : "0/5";
+
+  const timeframes =
+    x.timeframes || {};
+
+  const analysis =
+    x.analysis || {};
+
+  const direction =
+    analysis.direction ||
+    status;
+
+  let tradeHTML = "";
+
+  if(
+    x.entry !== null &&
+    x.entry !== undefined
+  ){
+
+    tradeHTML = `
+
+      <div class="trade">
+
+        <div>
+          Entry
+          <b>
+            ${formatPrice(x.entry)}
+          </b>
+        </div>
+
+        <div>
+          Stop Loss
+          <b>
+            ${formatPrice(x.stopLoss)}
+          </b>
+        </div>
+
+        <div>
+          Take Profit
+          <b>
+            ${formatPrice(x.takeProfit)}
+          </b>
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+
+  const analysisHTML = `
+
+    <div class="analysis">
+
+      <div>
+        Direction:
+        <span>
+          ${escapeHTML(direction || "WAIT")}
+        </span>
+      </div>
+
+      <div>
+        H12 SMC:
+        <span>
+          ${escapeHTML(
+            analysis.h12SMC || "UNKNOWN"
+          )}
+        </span>
+      </div>
+
+      <div>
+        H1 SMC:
+        <span>
+          ${escapeHTML(
+            analysis.h1SMC || "UNKNOWN"
+          )}
+        </span>
+      </div>
+
+      <div>
+        5M Breakout:
+        <span>
+          ${
+            analysis.breakout
+              ? "YES"
+              : "NO"
+          }
+        </span>
+      </div>
+
+      <div>
+        Rejection:
+        <span>
+          ${
+            analysis.rejection
+              ? "YES"
+              : "NO"
+          }
+        </span>
+      </div>
+
+      <div>
+        Location:
+        <span>
+          ${escapeHTML(
+            analysis.location || "—"
+          )}
+        </span>
+      </div>
+
+      <div>
+        Extended:
+        <span>
+          ${
+            analysis.extended
+              ? "YES"
+              : "NO"
+          }
+        </span>
+      </div>
+
+    </div>
+
+  `;
+
+
+  return `
+
+    <div class="card">
+
+      <div class="card-head">
+
+        <div>
+
+          <div class="pair">
+            ${escapeHTML(
+              x.symbol || "UNKNOWN"
+            )}
+          </div>
+
+          <div class="sig ${signalClass}">
+
+            ${
+              status === "BUY"
+                ? "🟢 STRONG BUY"
+                : status === "SELL"
+                  ? "🔴 STRONG SELL"
+                  : status === "OFFLINE"
+                    ? "⚠️ OFFLINE"
+                    : "⏳ WAIT"
+            }
+
+            ${
+              x.score > 0
+                ? ` — ${score}`
+                : ""
+            }
+
+          </div>
+
+        </div>
+
+        <span
+          class="dot ${dotClass}"
+        ></span>
+
+      </div>
+
+
+      <div class="details">
+
+        ${escapeHTML(
+          x.message ||
+          "Waiting for confirmation..."
+        )}
+
+      </div>
+
+
+      <div class="timeframes">
+
+        ${timeframeHTML(
+          "12H",
+          timeframes.h12
+        )}
+
+        ${timeframeHTML(
+          "1H",
+          timeframes.h1
+        )}
+
+        ${timeframeHTML(
+          "5M",
+          timeframes.m5
+        )}
+
+      </div>
+
+
+      ${tradeHTML}
+
+
+      ${
+        status === "BUY" ||
+        status === "SELL"
+          ? analysisHTML
+          : ""
+      }
+
+
+      <div class="meta">
+
+        Current Price:
+        ${
+          x.price !== null &&
+          x.price !== undefined
+            ? formatPrice(x.price)
+            : "—"
+        }
+
+        <br>
+
+        Updated:
+        ${formatTime(x.updated)}
+
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+/* =========================================================
+   LOAD DASHBOARD
+========================================================= */
 
 async function loadDashboard(){
 
   try{
 
-    const response = await fetch("/api/status");
+    const response =
+      await fetch(
+        "/api/status",
+        {
+          cache:"no-store"
+        }
+      );
 
-    const data = await response.json();
+    if(!response.ok){
 
-    const pairs = Object.values(data.pairs || {});
+      throw new Error(
+        `HTTP ${response.status}`
+      );
 
-    document.getElementById("system").textContent = "Online";
+    }
 
-    document.getElementById("system").className =
-      "value green";
 
-    document.getElementById("pairCount").textContent =
+    const data =
+      await response.json();
+
+
+    /* SYSTEM */
+
+    const system =
+      document.getElementById("system");
+
+    system.textContent =
+      data.online
+        ? "Online"
+        : "Offline";
+
+    system.className =
+      data.online
+        ? "value green"
+        : "value red";
+
+
+    document.getElementById(
+      "onlineText"
+    ).textContent =
+      data.online
+        ? "● System Online"
+        : "● System Offline";
+
+
+    /* PAIRS */
+
+    const pairs =
+      Object.values(
+        data.pairs || {}
+      );
+
+
+    document.getElementById(
+      "pairCount"
+    ).textContent =
       pairs.length;
 
-    document.getElementById("lastScan").textContent =
+
+    /* LAST SCAN */
+
+    document.getElementById(
+      "lastScan"
+    ).textContent =
       data.lastScan
-        ? new Date(data.lastScan).toLocaleTimeString()
+        ? new Date(
+            data.lastScan
+          ).toLocaleTimeString()
         : "Starting…";
 
-    document.getElementById("s").textContent =
+
+    /* SCAN INFORMATION */
+
+    document.getElementById(
+      "s"
+    ).textContent =
       "Last scan: " +
-      (data.lastScan
-        ? new Date(data.lastScan).toLocaleString()
-        : "Starting…") +
-      " • Timeframe: " +
-      (data.timeframe || "5min");
+      (
+        data.lastScan
+          ? formatTime(data.lastScan)
+          : "Starting…"
+      ) +
+      " • Entry timeframe: " +
+      (
+        data.timeframe ||
+        "5min"
+      ) +
+      " • Confirmation: 1H + 12H";
 
 
-    const grid = document.getElementById("g");
+    /* PAIR GRID */
+
+    const grid =
+      document.getElementById("g");
 
 
     if(!pairs.length){
 
-      grid.innerHTML =
-        '<div class="card">' +
-        '<div class="sig wait">WAIT</div>' +
-        '<div class="meta">No pair data available yet.</div>' +
-        '</div>';
-
-      return;
-    }
-
-
-    grid.innerHTML = pairs.map(x => {
-
-      let signalClass = "wait";
-
-      if(x.signal === "STRONG BUY"){
-        signalClass = "buy";
-      }
-
-      if(x.signal === "STRONG SELL"){
-        signalClass = "sell";
-      }
-
-      if(x.signal === "OFFLINE"){
-        signalClass = "offline";
-      }
-
-
-      let tradeInfo = "";
-
-
-      if(x.entry !== undefined){
-
-        tradeInfo = `
-          <div class="trade">
-
-            <div>
-              Entry
-              <b>${x.entry}</b>
-            </div>
-
-            <div>
-              Stop Loss
-              <b>${x.stopLoss ?? "—"}</b>
-            </div>
-
-            <div>
-              Take Profit
-              <b>${x.takeProfit ?? "—"}</b>
-            </div>
-
-          </div>
-        `;
-
-      }
-
-
-      return `
+      grid.innerHTML = `
 
         <div class="card">
 
-          <div class="card-head">
-
-            <div>
-
-              <div class="pair">
-                ${x.pair || "UNKNOWN"}
-              </div>
-
-              <div class="sig ${signalClass}">
-                ${x.signal || "WAIT"}
-                ${
-                  x.score
-                    ? " — " + x.score + "/5"
-                    : ""
-                }
-              </div>
-
-            </div>
-
-            <span class="dot"></span>
-
+          <div class="sig wait">
+            WAIT
           </div>
-
-
-          <div class="details">
-            ${x.detail || ""}
-          </div>
-
-
-          ${tradeInfo}
-
 
           <div class="meta">
-            Updated:
-            ${
-              x.updatedAt
-                ? new Date(x.updatedAt).toLocaleString()
-                : "—"
-            }
+            No pair data available yet.
           </div>
 
         </div>
 
       `;
 
-    }).join("");
+    }else{
+
+      grid.innerHTML =
+        pairs
+          .map(pairCard)
+          .join("");
+
+    }
+
+
+    /* PERFORMANCE */
+
+    const performance =
+      data.performance || {};
+
+
+    document.getElementById(
+      "totalSignals"
+    ).textContent =
+      performance.totalSignals || 0;
+
+
+    document.getElementById(
+      "buys"
+    ).textContent =
+      performance.buys || 0;
+
+
+    document.getElementById(
+      "sells"
+    ).textContent =
+      performance.sells || 0;
+
+
+    document.getElementById(
+      "wins"
+    ).textContent =
+      performance.wins || 0;
+
+
+    document.getElementById(
+      "losses"
+    ).textContent =
+      performance.losses || 0;
+
+
+    /* API STATUS */
+
+    const api =
+      data.api || {};
+
+
+    let apiText =
+      `Status: ${api.status || "UNKNOWN"}`;
+
+
+    if(api.totalRequests !== undefined){
+
+      apiText +=
+        ` • Total API requests: ${api.totalRequests}`;
+
+    }
+
+
+    if(
+      api.requestsThisScan !== undefined
+    ){
+
+      apiText +=
+        ` • This scan: ${api.requestsThisScan}`;
+
+    }
+
+
+    if(api.lastError){
+
+      apiText +=
+        ` • Error: ${api.lastError}`;
+
+    }
+
+
+    if(api.cooldownUntil){
+
+      apiText +=
+        ` • Cooldown until: ${formatTime(
+          api.cooldownUntil
+        )}`;
+
+    }
+
+
+    document.getElementById(
+      "apiStatus"
+    ).textContent =
+      apiText;
 
 
   }catch(error){
 
-    document.getElementById("system").textContent =
+    console.error(
+      "Dashboard error:",
+      error
+    );
+
+
+    document.getElementById(
+      "system"
+    ).textContent =
       "Offline";
 
-    document.getElementById("system").className =
+
+    document.getElementById(
+      "system"
+    ).className =
       "value red";
 
-    document.getElementById("lastScan").textContent =
+
+    document.getElementById(
+      "onlineText"
+    ).textContent =
+      "● System Offline";
+
+
+    document.getElementById(
+      "lastScan"
+    ).textContent =
       "Unavailable";
 
-    document.getElementById("s").textContent =
-      "Cloud monitor unavailable";
 
-    document.getElementById("g").innerHTML = `
+    document.getElementById(
+      "s"
+    ).textContent =
+      "Unable to connect to trading engine.";
+
+
+    document.getElementById(
+      "apiStatus"
+    ).textContent =
+      "Dashboard connection error: " +
+      error.message;
+
+
+    document.getElementById(
+      "g"
+    ).innerHTML = `
 
       <div class="card">
 
@@ -587,7 +1334,8 @@ async function loadDashboard(){
         </div>
 
         <div class="details">
-          Unable to connect to /api/status.
+          Unable to connect to
+          /api/status.
         </div>
 
       </div>
@@ -599,70 +1347,189 @@ async function loadDashboard(){
 }
 
 
-/* Load immediately */
-loadDashboard();
+/* =========================================================
+   ALERT BUTTON
+========================================================= */
+
+const alertToggle =
+  document.getElementById(
+    "alertToggle"
+  );
 
 
-/* Refresh every 15 seconds */
-setInterval(loadDashboard,15000);
+function updateAlertButton(
+  enabled
+){
 
-</script>
+  currentAlertState =
+    Boolean(enabled);
 
-</body>
-  <script>
-const alertToggle = document.getElementById("alertToggle");
 
-async function loadAlertStatus() {
-  try {
-    const response = await fetch("/api/alerts");
-    const data = await response.json();
+  if(currentAlertState){
 
-    updateAlertButton(data.enabled);
-  } catch (error) {
-    alertToggle.textContent = "ERROR";
+    alertToggle.textContent =
+      "ON";
+
+    alertToggle.className =
+      "alert-button alert-on";
+
+  }else{
+
+    alertToggle.textContent =
+      "OFF";
+
+    alertToggle.className =
+      "alert-button alert-off";
+
   }
+
 }
 
-function updateAlertButton(enabled) {
-  if (enabled) {
-    alertToggle.textContent = "ON";
-    alertToggle.className = "alert-button alert-on";
-  } else {
-    alertToggle.textContent = "OFF";
-    alertToggle.className = "alert-button alert-off";
+
+/*
+   Your Node.js backend currently exposes
+   POST /api/alerts but not GET /api/alerts.
+
+   Therefore we read the alert state from
+   /api/status.
+*/
+
+async function loadAlertStatus(){
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/status",
+        {
+          cache:"no-store"
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    updateAlertButton(
+      data.alerts
+    );
+
+
+  }catch(error){
+
+    alertToggle.textContent =
+      "ERROR";
+
+    alertToggle.className =
+      "alert-button alert-off";
+
   }
+
 }
 
-alertToggle.addEventListener("click", async () => {
-  alertToggle.disabled = true;
 
-  try {
-    const response = await fetch("/api/alerts");
-    const data = await response.json();
+alertToggle.addEventListener(
+  "click",
+  async function(){
 
-    const result = await fetch("/api/alerts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        enabled: !data.enabled
-      })
-    });
+    alertToggle.disabled =
+      true;
 
-    const updated = await result.json();
 
-    if (updated.ok) {
-      updateAlertButton(updated.enabled);
+    try{
+
+      const newState =
+        !currentAlertState;
+
+
+      const response =
+        await fetch(
+          "/api/alerts",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                enabled:newState
+              })
+          }
+        );
+
+
+      const result =
+        await response.json();
+
+
+      if(result.ok){
+
+        updateAlertButton(
+          result.alerts
+        );
+
+      }else{
+
+        throw new Error(
+          "Unable to change alert state"
+        );
+
+      }
+
+
+    }catch(error){
+
+      console.error(
+        "Alert toggle error:",
+        error
+      );
+
+      alertToggle.textContent =
+        "ERROR";
+
     }
 
-  } catch (error) {
-    alertToggle.textContent = "ERROR";
-  }
 
-  alertToggle.disabled = false;
-});
+    alertToggle.disabled =
+      false;
+
+  }
+);
+
+
+/* =========================================================
+   START
+========================================================= */
+
+loadDashboard();
 
 loadAlertStatus();
-  </script>
+
+
+/*
+   Dashboard refresh:
+   every 15 seconds.
+*/
+
+setInterval(
+  loadDashboard,
+  15000
+);
+
+
+/*
+   Alert state refresh:
+   every 15 seconds.
+*/
+
+setInterval(
+  loadAlertStatus,
+  15000
+);
+
+</script></body>
 </html>
