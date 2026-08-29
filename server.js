@@ -9,25 +9,18 @@ app.use(express.static(path.join(__dirname, "public")));
 /*
 ===========================================================
 TRADING CLOUD MONITOR
-Multi-Timeframe + SMC + RSI + EMA + ATR
-
-PROTECTIONS:
-- Forex/Gold market-hours protection
-- Weekend protection
-- Stale-candle protection
-- Twelve Data rate-limit protection
-- Duplicate signal protection
-- Late-entry protection
+12H + 1H + 5M
+SMC + RSI + EMA + ATR
+MARKET CLOSED PROTECTION
+LATE ENTRY PROTECTION
 ===========================================================
 */
 
 const PORT = process.env.PORT || 3000;
 
 const API_KEY = process.env.TWELVE_DATA_API_KEY;
-const TELEGRAM_BOT_TOKEN =
-  process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID =
-  process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 /* =========================================================
    CONFIG
@@ -46,70 +39,37 @@ const PAIRS = [
 const ENTRY_TIMEFRAME = "5min";
 const HIGHER_TIMEFRAME = "1h";
 
+/*
+   Scan every 15 minutes.
+*/
 const POLL_MS = Math.max(
   900000,
   Number(process.env.POLL_MS || 900000)
 );
 
+/*
+   Keep requests separated.
+*/
 const REQUEST_GAP_MS = Math.max(
   3000,
   Number(process.env.REQUEST_GAP_MS || 9500)
 );
 
 /*
-   Cache durations.
+   Cache.
 */
 const M5_CACHE_MS = 5 * 60 * 1000;
+
+/*
+   H1 cache is shorter because H1 data
+   needs to update regularly.
+*/
 const H1_CACHE_MS = 60 * 60 * 1000;
 
 /*
    API cooldown after rate limit.
 */
-const API_COOLDOWN_MS =
-  5 * 60 * 1000;
-
-/*
-===========================================================
-CANDLE FRESHNESS
-
-The bot will NOT generate a live signal from old candles.
-
-M5:
-12 minutes maximum age.
-
-H1:
-90 minutes maximum age.
-
-12H:
-14 hours maximum age.
-===========================================================
-*/
-
-const MAX_M5_CANDLE_AGE_MS =
-  12 * 60 * 1000;
-
-const MAX_H1_CANDLE_AGE_MS =
-  90 * 60 * 1000;
-
-const MAX_H12_CANDLE_AGE_MS =
-  14 * 60 * 60 * 1000;
-
-/*
-===========================================================
-MARKET HOURS
-
-Forex normally closes Friday around 22:00 UTC
-and opens Sunday around 22:00 UTC.
-
-The bot blocks weekend trading.
-
-This also protects XAU/USD because Gold is closed
-during the normal weekend trading period.
-===========================================================
-*/
-
-const MARKET_CLOSE_UTC_HOUR = 22;
-const MARKET_OPEN_UTC_HOUR = 22;
+const API_COOLDOWN_MS = 5 * 60 * 1000;
 
 let apiCooldownUntil = 0;
 let lastApiRequest = 0;
@@ -123,6 +83,8 @@ const state = {
 
   alerts: true,
 
+  marketOpen: false,
+
   lastScan: null,
 
   scanning: false,
@@ -132,13 +94,6 @@ const state = {
   scanFinished: null,
 
   pairs: {},
-
-  market: {
-    open: false,
-    status: "UNKNOWN",
-    reason: "Checking market hours...",
-    checkedAt: null
-  },
 
   api: {
     configured: Boolean(API_KEY),
@@ -173,17 +128,6 @@ for (const pair of PAIRS) {
   state.pairs[pair] = {
     symbol: pair,
 
-    /*
-      Dashboard-compatible aliases.
-    */
-    pair: pair,
-
-    signal: "WAIT",
-
-    detail: "Waiting for market data...",
-
-    updatedAt: null,
-
     status: "WAIT",
 
     score: 0,
@@ -196,8 +140,7 @@ for (const pair of PAIRS) {
 
     takeProfit: null,
 
-    message:
-      "Waiting for market data...",
+    message: "Waiting for market data...",
 
     updated: null,
 
@@ -229,9 +172,7 @@ for (const pair of PAIRS) {
 ========================================================= */
 
 function sleep(ms) {
-  return new Promise(resolve =>
-    setTimeout(resolve, ms)
-  );
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function isoNow() {
@@ -243,9 +184,7 @@ function roundPrice(value, digits = 5) {
     return null;
   }
 
-  return Number(
-    value.toFixed(digits)
-  );
+  return Number(value.toFixed(digits));
 }
 
 function priceDigits(pair) {
@@ -260,179 +199,70 @@ function priceDigits(pair) {
   return 5;
 }
 
-function validNumber(value) {
-  return Number.isFinite(Number(value));
-}
-
 /* =========================================================
-   MARKET HOURS
+   MARKET OPEN / CLOSED
 ========================================================= */
 
-function getMarketStatus() {
+/*
+   Forex and XAU/USD are normally closed over the weekend.
+
+   We use UTC because the server may be running in Railway
+   with a different timezone.
+
+   Friday after 22:00 UTC -> CLOSED
+   Saturday               -> CLOSED
+   Sunday before 22:00 UTC -> CLOSED
+   Sunday 22:00 UTC onward -> OPEN
+
+   This is a practical filter, not an exchange calendar.
+*/
+
+function isMarketOpen() {
   const now = new Date();
 
-  const day =
-    now.getUTCDay();
+  const day = now.getUTCDay();
+  const hour = now.getUTCHours();
+  const minute = now.getUTCMinutes();
 
-  const hour =
-    now.getUTCHours();
-
-  const minute =
-    now.getUTCMinutes();
-
-  const currentMinutes =
+  const totalMinutes =
     hour * 60 + minute;
 
-  const openMinutes =
-    MARKET_OPEN_UTC_HOUR * 60;
-
-  const closeMinutes =
-    MARKET_CLOSE_UTC_HOUR * 60;
-
   /*
-    Saturday = closed.
+     Saturday
   */
   if (day === 6) {
-    return {
-      open: false,
-      status: "CLOSED",
-      reason:
-        "Weekend - market closed",
-      checkedAt: isoNow()
-    };
+    return false;
   }
 
   /*
-    Sunday before 22:00 UTC = closed.
+     Sunday before 22:00 UTC
   */
   if (
     day === 0 &&
-    currentMinutes < openMinutes
+    totalMinutes < 22 * 60
   ) {
-    return {
-      open: false,
-      status: "CLOSED",
-      reason:
-        "Sunday - market opens at 22:00 UTC",
-      checkedAt: isoNow()
-    };
+    return false;
   }
 
   /*
-    Friday 22:00 UTC onward = closed.
+     Friday after 22:00 UTC
   */
   if (
     day === 5 &&
-    currentMinutes >= closeMinutes
+    totalMinutes >= 22 * 60
   ) {
-    return {
-      open: false,
-      status: "CLOSED",
-      reason:
-        "Friday after 22:00 UTC - market closed",
-      checkedAt: isoNow()
-    };
+    return false;
   }
 
-  /*
-    Otherwise market is considered open.
-  */
-  return {
-    open: true,
-    status: "OPEN",
-    reason:
-      "Market trading hours",
-    checkedAt: isoNow()
-  };
+  return true;
 }
 
-function updateMarketStatus() {
-  const market =
-    getMarketStatus();
-
-  state.market = market;
-
-  return market;
-}
-
-/* =========================================================
-   CANDLE DATE HELPERS
-========================================================= */
-
-function candleTimestamp(candle) {
-  if (
-    !candle ||
-    !candle.datetime
-  ) {
-    return null;
+function marketStatusMessage() {
+  if (isMarketOpen()) {
+    return "MARKET OPEN";
   }
 
-  const timestamp =
-    new Date(
-      candle.datetime
-    ).getTime();
-
-  if (
-    !Number.isFinite(timestamp)
-  ) {
-    return null;
-  }
-
-  return timestamp;
-}
-
-function candleAgeMs(candle) {
-  const timestamp =
-    candleTimestamp(candle);
-
-  if (timestamp === null) {
-    return Infinity;
-  }
-
-  return (
-    Date.now() -
-    timestamp
-  );
-}
-
-function isCandleFresh(
-  candle,
-  maxAgeMs
-) {
-  const age =
-    candleAgeMs(candle);
-
-  return (
-    age >= 0 &&
-    age <= maxAgeMs
-  );
-}
-
-function freshnessMessage(
-  timeframe,
-  candle,
-  maxAgeMs
-) {
-  const timestamp =
-    candleTimestamp(candle);
-
-  if (timestamp === null) {
-    return `${timeframe} candle timestamp unavailable`;
-  }
-
-  const ageMinutes =
-    Math.round(
-      candleAgeMs(candle) /
-        60000
-    );
-
-  return (
-    `${timeframe} candle is stale ` +
-    `(${ageMinutes} minutes old, ` +
-    `maximum ${Math.round(
-      maxAgeMs / 60000
-    )} minutes)`
-  );
+  return "MARKET CLOSED";
 }
 
 /* =========================================================
@@ -441,21 +271,17 @@ function freshnessMessage(
 
 async function waitForApiSlot() {
   const elapsed =
-    Date.now() -
-    lastApiRequest;
+    Date.now() - lastApiRequest;
 
   if (
-    elapsed <
-    REQUEST_GAP_MS
+    elapsed < REQUEST_GAP_MS
   ) {
     await sleep(
-      REQUEST_GAP_MS -
-        elapsed
+      REQUEST_GAP_MS - elapsed
     );
   }
 
-  lastApiRequest =
-    Date.now();
+  lastApiRequest = Date.now();
 }
 
 /* =========================================================
@@ -468,9 +294,7 @@ async function getCandles(
   outputsize = 100
 ) {
   if (!API_KEY) {
-    state.api.configured =
-      false;
-
+    state.api.configured = false;
     state.api.status =
       "NOT CONFIGURED";
 
@@ -547,7 +371,7 @@ async function getCandles(
   }
 
   /*
-    HTTP 429
+     HTTP 429
   */
   if (
     response.status === 429
@@ -575,6 +399,9 @@ async function getCandles(
     );
   }
 
+  /*
+     Other HTTP errors.
+  */
   if (!response.ok) {
     state.api.status =
       "API ERROR";
@@ -588,7 +415,7 @@ async function getCandles(
   }
 
   /*
-    Twelve Data error response.
+     API-level error.
   */
   if (
     data &&
@@ -602,9 +429,8 @@ async function getCandles(
       "Twelve Data error";
 
     if (
-      /limit|credit|rate/i.test(
-        message
-      )
+      /limit|credit|rate/i
+        .test(message)
     ) {
       apiCooldownUntil =
         Date.now() +
@@ -626,17 +452,16 @@ async function getCandles(
       message;
 
     throw new Error(
-      `Twelve Data ${
-        data.code || ""
-      } ${message}`.trim()
+      `Twelve Data ${data.code || ""} ${message}`.trim()
     );
   }
 
+  /*
+     Validate candle response.
+  */
   if (
     !data ||
-    !Array.isArray(
-      data.values
-    )
+    !Array.isArray(data.values)
   ) {
     state.api.status =
       "NO DATA";
@@ -673,18 +498,10 @@ async function getCandles(
             : 0
       }))
       .filter(c =>
-        Number.isFinite(
-          c.open
-        ) &&
-        Number.isFinite(
-          c.high
-        ) &&
-        Number.isFinite(
-          c.low
-        ) &&
-        Number.isFinite(
-          c.close
-        )
+        Number.isFinite(c.open) &&
+        Number.isFinite(c.high) &&
+        Number.isFinite(c.low) &&
+        Number.isFinite(c.close)
       )
       .reverse();
 
@@ -712,8 +529,7 @@ async function getCandles(
    CACHE
 ========================================================= */
 
-const cache =
-  new Map();
+const cache = new Map();
 
 function cacheKey(
   pair,
@@ -788,10 +604,7 @@ function ema(
 
   let result =
     values
-      .slice(
-        0,
-        period
-      )
+      .slice(0, period)
       .reduce(
         (sum, value) =>
           sum + value,
@@ -925,8 +738,7 @@ function atr(
     return null;
   }
 
-  const trueRanges =
-    [];
+  const trueRanges = [];
 
   for (
     let i = 1;
@@ -967,13 +779,9 @@ function atr(
 
   let value =
     trueRanges
-      .slice(
-        0,
-        period
-      )
+      .slice(0, period)
       .reduce(
-        (a, b) =>
-          a + b,
+        (a, b) => a + b,
         0
       ) / period;
 
@@ -994,7 +802,7 @@ function atr(
 }
 
 /* =========================================================
-   MARKET STRUCTURE
+   HIGHEST / LOWEST
 ========================================================= */
 
 function highest(
@@ -1034,9 +842,7 @@ function highest(
       );
   }
 
-  return Number.isFinite(
-    result
-  )
+  return Number.isFinite(result)
     ? result
     : null;
 }
@@ -1078,9 +884,7 @@ function lowest(
       );
   }
 
-  return Number.isFinite(
-    result
-  )
+  return Number.isFinite(result)
     ? result
     : null;
 }
@@ -1094,7 +898,7 @@ function candleBody(
 ) {
   return Math.abs(
     candle.close -
-      candle.open
+    candle.open
   );
 }
 
@@ -1172,13 +976,11 @@ function bullishRejection(
     lowerWick(candle);
 
   return (
-    lower >=
-      body * 1.5 &&
-    lower >=
-      range * 0.30 &&
+    lower >= body * 1.5 &&
+    lower >= range * 0.30 &&
     candle.close >
       candle.low +
-        range * 0.55
+      range * 0.55
   );
 }
 
@@ -1201,13 +1003,11 @@ function bearishRejection(
     upperWick(candle);
 
   return (
-    upper >=
-      body * 1.5 &&
-    upper >=
-      range * 0.30 &&
+    upper >= body * 1.5 &&
+    upper >= range * 0.30 &&
     candle.close <
       candle.high -
-        range * 0.55
+      range * 0.55
   );
 }
 
@@ -1224,8 +1024,11 @@ function analyzeTrend(
   ) {
     return {
       trend: "NEUTRAL",
+
       rsi: null,
+
       ema20: null,
+
       ema50: null
     };
   }
@@ -1240,13 +1043,13 @@ function analyzeTrend(
       closes.length - 1
     ];
 
-  const ema20 =
+  const ema20Value =
     ema(
       closes,
       20
     );
 
-  const ema50 =
+  const ema50Value =
     ema(
       closes,
       50
@@ -1259,15 +1062,20 @@ function analyzeTrend(
     );
 
   if (
-    ema20 === null ||
-    ema50 === null ||
+    ema20Value === null ||
+    ema50Value === null ||
     rsiValue === null
   ) {
     return {
       trend: "NEUTRAL",
+
       rsi: null,
-      ema20,
-      ema50
+
+      ema20:
+        ema20Value,
+
+      ema50:
+        ema50Value
     };
   }
 
@@ -1275,16 +1083,20 @@ function analyzeTrend(
     "NEUTRAL";
 
   if (
-    current > ema20 &&
-    ema20 > ema50
+    current >
+      ema20Value &&
+    ema20Value >
+      ema50Value
   ) {
     trend =
       "BULLISH";
   }
 
   if (
-    current < ema20 &&
-    ema20 < ema50
+    current <
+      ema20Value &&
+    ema20Value <
+      ema50Value
   ) {
     trend =
       "BEARISH";
@@ -1298,22 +1110,42 @@ function analyzeTrend(
         rsiValue.toFixed(1)
       ),
 
-    ema20,
+    ema20:
+      ema20Value,
 
-    ema50
+    ema50:
+      ema50Value
   };
 }
 
 /* =========================================================
-   BUILD 12H FROM 1H
+   BUILD REAL 12H CANDLES
 ========================================================= */
+
+/*
+   FIX FOR THE OLD 12H PROBLEM:
+
+   The old code used only 300 H1 candles.
+   That can produce fewer than 50 valid 12H candles.
+
+   We now request 1000 H1 candles and construct
+   12H candles from them.
+
+   We also only accept a 12H block when it has
+   enough H1 candles.
+
+   A 12H candle must contain at least 10 H1 candles
+   to be considered valid.
+
+   This reduces incomplete/partial 12H candles.
+*/
 
 function build12HCandles(
   hourly
 ) {
   if (
     !Array.isArray(hourly) ||
-    hourly.length < 24
+    hourly.length < 100
   ) {
     return [];
   }
@@ -1377,8 +1209,7 @@ function build12HCandles(
       .push(candle);
   }
 
-  const result =
-    [];
+  const result = [];
 
   for (
     const [
@@ -1386,12 +1217,6 @@ function build12HCandles(
       candles
     ] of groups
   ) {
-    if (
-      candles.length < 8
-    ) {
-      continue;
-    }
-
     candles.sort(
       (a, b) =>
         new Date(
@@ -1401,6 +1226,15 @@ function build12HCandles(
           b.datetime
         )
     );
+
+    /*
+       Require at least 10 hourly candles.
+    */
+    if (
+      candles.length < 10
+    ) {
+      continue;
+    }
 
     const first =
       candles[0];
@@ -1437,9 +1271,10 @@ function build12HCandles(
         candles.reduce(
           (sum, c) =>
             sum +
-            (Number(
-              c.volume
-            ) || 0),
+            (
+              Number(c.volume) ||
+              0
+            ),
           0
         )
     });
@@ -1457,7 +1292,7 @@ function build12HCandles(
 }
 
 /* =========================================================
-   SIMPLE SMC
+   SMC
 ========================================================= */
 
 function analyzeSMC(
@@ -1469,8 +1304,11 @@ function analyzeSMC(
   ) {
     return {
       bias: "NEUTRAL",
+
       bos: false,
+
       sweep: false,
+
       strength: "WEAK"
     };
   }
@@ -1520,20 +1358,12 @@ function analyzeSMC(
       recentHigh;
 
   const bullish =
-    bullishCandle(
-      last
-    ) ||
-    bullishCandle(
-      previous
-    );
+    bullishCandle(last) ||
+    bullishCandle(previous);
 
   const bearish =
-    bearishCandle(
-      last
-    ) ||
-    bearishCandle(
-      previous
-    );
+    bearishCandle(last) ||
+    bearishCandle(previous);
 
   if (
     bullishBOS &&
@@ -1541,9 +1371,14 @@ function analyzeSMC(
   ) {
     return {
       bias: "BULLISH",
+
       bos: true,
-      sweep: bullishSweep,
-      strength: "STRONG"
+
+      sweep:
+        bullishSweep,
+
+      strength:
+        "STRONG"
     };
   }
 
@@ -1553,9 +1388,14 @@ function analyzeSMC(
   ) {
     return {
       bias: "BEARISH",
+
       bos: true,
-      sweep: bearishSweep,
-      strength: "STRONG"
+
+      sweep:
+        bearishSweep,
+
+      strength:
+        "STRONG"
     };
   }
 
@@ -1565,9 +1405,13 @@ function analyzeSMC(
   ) {
     return {
       bias: "BULLISH",
+
       bos: false,
+
       sweep: true,
-      strength: "CONFIRMED"
+
+      strength:
+        "CONFIRMED"
     };
   }
 
@@ -1577,17 +1421,25 @@ function analyzeSMC(
   ) {
     return {
       bias: "BEARISH",
+
       bos: false,
+
       sweep: true,
-      strength: "CONFIRMED"
+
+      strength:
+        "CONFIRMED"
     };
   }
 
   return {
     bias: "NEUTRAL",
+
     bos: false,
+
     sweep: false,
-    strength: "WEAK"
+
+    strength:
+      "WEAK"
   };
 }
 
@@ -1604,13 +1456,19 @@ function analyzeEntry(
   if (
     m5.length < 60 ||
     h1.length < 50 ||
-    h12.length < 20
+    h12.length < 50
   ) {
     return {
       status: "WAIT",
+
       score: 0,
+
       message:
-        "Waiting for enough market data",
+        `Waiting for timeframe data: ` +
+        `M5=${m5.length}, ` +
+        `H1=${h1.length}, ` +
+        `12H=${h12.length}`,
+
       analysis: {}
     };
   }
@@ -1636,13 +1494,13 @@ function analyzeEntry(
   const currentPrice =
     current.close;
 
-  const ema20 =
+  const ema20Value =
     ema(
       closes,
       20
     );
 
-  const ema50 =
+  const ema50Value =
     ema(
       closes,
       50
@@ -1661,16 +1519,19 @@ function analyzeEntry(
     );
 
   if (
-    ema20 === null ||
-    ema50 === null ||
+    ema20Value === null ||
+    ema50Value === null ||
     rsiValue === null ||
     atrValue === null
   ) {
     return {
       status: "WAIT",
+
       score: 0,
+
       message:
         "Calculating indicators...",
+
       analysis: {}
     };
   }
@@ -1739,18 +1600,18 @@ function analyzeEntry(
 
   const bullish5 =
     currentPrice >
-      ema20 &&
-    ema20 >
-      ema50;
+      ema20Value &&
+    ema20Value >
+      ema50Value;
 
   const bearish5 =
     currentPrice <
-      ema20 &&
-    ema20 <
-      ema50;
+      ema20Value &&
+    ema20Value <
+      ema50Value;
 
   /* =======================================================
-     PULLBACK / LOCATION
+     LOCATION
   ======================================================= */
 
   const recentHigh =
@@ -1805,7 +1666,7 @@ function analyzeEntry(
   const distanceFromEMA =
     Math.abs(
       currentPrice -
-      ema20
+      ema20Value
     );
 
   const tooFarFromEMA =
@@ -1813,21 +1674,13 @@ function analyzeEntry(
     atrValue * 1.5;
 
   const hugeBull =
-    bullishCandle(
-      current
-    ) &&
-    candleRange(
-      current
-    ) >
+    bullishCandle(current) &&
+    candleRange(current) >
       atrValue * 1.8;
 
   const hugeBear =
-    bearishCandle(
-      current
-    ) &&
-    candleRange(
-      current
-    ) >
+    bearishCandle(current) &&
+    candleRange(current) >
       atrValue * 1.8;
 
   const buyBadLocation =
@@ -1847,13 +1700,12 @@ function analyzeEntry(
   let buyScore = 0;
   let sellScore = 0;
 
-  const buyReasons =
-    [];
+  const buyReasons = [];
+  const sellReasons = [];
 
-  const sellReasons =
-    [];
-
-  /* 12H */
+  /*
+     12H trend
+  */
 
   if (
     h12Trend.trend ===
@@ -1877,7 +1729,9 @@ function analyzeEntry(
     );
   }
 
-  /* 1H */
+  /*
+     1H trend
+  */
 
   if (
     h1Trend.trend ===
@@ -1901,9 +1755,13 @@ function analyzeEntry(
     );
   }
 
-  /* 5M */
+  /*
+     5M trend
+  */
 
-  if (bullish5) {
+  if (
+    bullish5
+  ) {
     buyScore++;
 
     buyReasons.push(
@@ -1911,7 +1769,9 @@ function analyzeEntry(
     );
   }
 
-  if (bearish5) {
+  if (
+    bearish5
+  ) {
     sellScore++;
 
     sellReasons.push(
@@ -1919,7 +1779,9 @@ function analyzeEntry(
     );
   }
 
-  /* SMC / Breakout */
+  /*
+     SMC
+  */
 
   if (
     bullishBreak ||
@@ -1955,7 +1817,9 @@ function analyzeEntry(
     );
   }
 
-  /* RSI */
+  /*
+     RSI
+  */
 
   if (
     rsiValue >= 52 &&
@@ -2072,9 +1936,12 @@ function analyzeEntry(
     ) {
       return {
         status: "WAIT",
+
         score: buyScore,
+
         message:
           "Invalid BUY risk",
+
         analysis: {}
       };
     }
@@ -2119,7 +1986,8 @@ function analyzeEntry(
         ),
 
       analysis: {
-        direction: "BUY",
+        direction:
+          "BUY",
 
         h12:
           h12Trend.trend,
@@ -2134,15 +2002,11 @@ function analyzeEntry(
           h1SMC.bias,
 
         m5Trend:
-          bullish5
-            ? "BULLISH"
-            : "NEUTRAL",
+          "BULLISH",
 
         rsi:
           Number(
-            rsiValue.toFixed(
-              1
-            )
+            rsiValue.toFixed(1)
           ),
 
         atr:
@@ -2159,7 +2023,8 @@ function analyzeEntry(
 
         location,
 
-        extended: false
+        extended:
+          false
       }
     };
   }
@@ -2211,9 +2076,13 @@ function analyzeEntry(
     ) {
       return {
         status: "WAIT",
-        score: sellScore,
+
+        score:
+          sellScore,
+
         message:
           "Invalid SELL risk",
+
         analysis: {}
       };
     }
@@ -2223,7 +2092,8 @@ function analyzeEntry(
       risk * 2;
 
     return {
-      status: "SELL",
+      status:
+        "SELL",
 
       score:
         Math.min(
@@ -2258,7 +2128,8 @@ function analyzeEntry(
         ),
 
       analysis: {
-        direction: "SELL",
+        direction:
+          "SELL",
 
         h12:
           h12Trend.trend,
@@ -2273,15 +2144,11 @@ function analyzeEntry(
           h1SMC.bias,
 
         m5Trend:
-          bearish5
-            ? "BEARISH"
-            : "NEUTRAL",
+          "BEARISH",
 
         rsi:
           Number(
-            rsiValue.toFixed(
-              1
-            )
+            rsiValue.toFixed(1)
           ),
 
         atr:
@@ -2298,7 +2165,8 @@ function analyzeEntry(
 
         location,
 
-        extended: false
+        extended:
+          false
       }
     };
   }
@@ -2317,9 +2185,7 @@ function analyzeEntry(
           ? "BEARISH"
           : "NEUTRAL"
     } | ` +
-    `RSI ${rsiValue.toFixed(
-      1
-    )}`;
+    `RSI ${rsiValue.toFixed(1)}`;
 
   if (
     tooFarFromEMA
@@ -2344,7 +2210,8 @@ function analyzeEntry(
   }
 
   return {
-    status: "WAIT",
+    status:
+      "WAIT",
 
     score:
       Math.min(
@@ -2355,7 +2222,8 @@ function analyzeEntry(
         5
       ),
 
-    message: reason,
+    message:
+      reason,
 
     analysis: {
       h12:
@@ -2372,9 +2240,7 @@ function analyzeEntry(
 
       rsi:
         Number(
-          rsiValue.toFixed(
-            1
-          )
+          rsiValue.toFixed(1)
         ),
 
       buyScore,
@@ -2405,29 +2271,25 @@ async function sendTelegramSignal(
   pair,
   signal
 ) {
-  /*
-    FINAL SAFETY CHECK.
-    Even if another part of the program calls this function,
-    NEVER send a signal while market is closed.
-  */
-
-  const market =
-    updateMarketStatus();
-
-  if (!market.open) {
-    console.log(
-      `Telegram BLOCKED: ${pair} - ${market.reason}`
-    );
-
-    return false;
-  }
-
   if (
     !TELEGRAM_BOT_TOKEN ||
     !TELEGRAM_CHAT_ID
   ) {
     console.log(
       "Telegram credentials not configured."
+    );
+
+    return false;
+  }
+
+  /*
+     NEVER send while market is closed.
+  */
+  if (
+    !isMarketOpen()
+  ) {
+    console.log(
+      `Telegram blocked: market closed (${pair})`
     );
 
     return false;
@@ -2449,8 +2311,11 @@ async function sendTelegramSignal(
 📊 ${signal.message}
 
 ⏱ Entry TF: 5M
-🔎 Confirmation: 1H + 12H + 5M
+🔎 Confirmation: 12H + 1H + 5M
 💰 Risk/Reward: 1:2
+
+🛡️ Late-entry protection: ACTIVE
+🛡️ Market-hours filter: ACTIVE
 
 ⚠️ Signal confirmation required before entry.`;
 
@@ -2547,7 +2412,7 @@ function shouldSendSignal(
 }
 
 /* =========================================================
-   GET CACHED 5M
+   GET M5
 ========================================================= */
 
 async function getM5(
@@ -2560,7 +2425,9 @@ async function getM5(
       M5_CACHE_MS
     );
 
-  if (cached) {
+  if (
+    cached
+  ) {
     return cached;
   }
 
@@ -2581,7 +2448,7 @@ async function getM5(
 }
 
 /* =========================================================
-   GET CACHED 1H
+   GET H1
 ========================================================= */
 
 async function getH1(
@@ -2594,15 +2461,30 @@ async function getH1(
       H1_CACHE_MS
     );
 
-  if (cached) {
+  if (
+    cached
+  ) {
     return cached;
   }
+
+  /*
+     IMPORTANT FIX:
+
+     Old:
+     300 H1 candles
+
+     New:
+     1000 H1 candles
+
+     This gives enough history to construct
+     at least 50 valid 12H candles.
+  */
 
   const candles =
     await getCandles(
       pair,
       HIGHER_TIMEFRAME,
-      300
+      1000
     );
 
   setCache(
@@ -2612,46 +2494,6 @@ async function getH1(
   );
 
   return candles;
-}
-
-/* =========================================================
-   UPDATE PAIR WAIT STATUS
-========================================================= */
-
-function setPairWait(
-  item,
-  message,
-  score = 0
-) {
-  item.status =
-    "WAIT";
-
-  item.signal =
-    "WAIT";
-
-  item.score =
-    score;
-
-  item.entry =
-    null;
-
-  item.stopLoss =
-    null;
-
-  item.takeProfit =
-    null;
-
-  item.message =
-    message;
-
-  item.detail =
-    message;
-
-  item.updated =
-    Date.now();
-
-  item.updatedAt =
-    item.updated;
 }
 
 /* =========================================================
@@ -2666,202 +2508,58 @@ async function scanPair(
 
   try {
     /*
-      Market status is checked BEFORE
-      requesting/analyzing the pair.
+       M5
     */
-
-    const market =
-      updateMarketStatus();
-
-    if (
-      !market.open
-    ) {
-      setPairWait(
-        item,
-        `Market closed - ${market.reason}`
-      );
-
-      item.analysis = {
-        market:
-          "CLOSED"
-      };
-
-      return;
-    }
-
-    /*
-      Get M5.
-    */
-
     const m5 =
       await getM5(pair);
 
     /*
-      STALE M5 PROTECTION.
-
-      This is the important fix for the
-      weekend signal problem.
+       H1
     */
-
-    const latestM5 =
-      m5[
-        m5.length - 1
-      ];
-
-    if (
-      !isCandleFresh(
-        latestM5,
-        MAX_M5_CANDLE_AGE_MS
-      )
-    ) {
-      const message =
-        freshnessMessage(
-          "5M",
-          latestM5,
-          MAX_M5_CANDLE_AGE_MS
-        );
-
-      setPairWait(
-        item,
-        `Waiting - ${message}`
-      );
-
-      item.price =
-        latestM5.close;
-
-      item.analysis = {
-        market:
-          "OPEN",
-        candleFresh:
-          false,
-        candleTime:
-          latestM5.datetime
-      };
-
-      return;
-    }
-
-    /*
-      Get H1.
-    */
-
     const h1 =
       await getH1(pair);
 
-    const latestH1 =
-      h1[
-        h1.length - 1
-      ];
-
     /*
-      H1 freshness protection.
+       Build 12H locally.
     */
-
-    if (
-      !isCandleFresh(
-        latestH1,
-        MAX_H1_CANDLE_AGE_MS
-      )
-    ) {
-      const message =
-        freshnessMessage(
-          "1H",
-          latestH1,
-          MAX_H1_CANDLE_AGE_MS
-        );
-
-      setPairWait(
-        item,
-        `Waiting - ${message}`
-      );
-
-      item.price =
-        latestM5.close;
-
-      item.analysis = {
-        market:
-          "OPEN",
-        m5Fresh:
-          true,
-        h1Fresh:
-          false,
-        candleTime:
-          latestH1.datetime
-      };
-
-      return;
-    }
-
-    /*
-      Build 12H locally from H1.
-    */
-
     const h12 =
-      build12HCandles(
-        h1
-      );
+      build12HCandles(h1);
 
+    /*
+       Update basic market information.
+    */
+    item.price =
+      m5[
+        m5.length - 1
+      ].close;
+
+    /*
+       Not enough history.
+    */
     if (
-      h12.length < 20
+      m5.length < 60 ||
+      h1.length < 50 ||
+      h12.length < 50
     ) {
-      setPairWait(
-        item,
-        "Waiting for enough 12H data"
-      );
+      item.status =
+        "WAIT";
+
+      item.score =
+        0;
+
+      item.message =
+        `Waiting for enough timeframe data ` +
+        `(M5:${m5.length} H1:${h1.length} 12H:${h12.length})`;
+
+      item.updated =
+        Date.now();
 
       return;
     }
 
     /*
-      Check latest 12H candle.
+       Analyze.
     */
-
-    const latestH12 =
-      h12[
-        h12.length - 1
-      ];
-
-    if (
-      !isCandleFresh(
-        latestH12,
-        MAX_H12_CANDLE_AGE_MS
-      )
-    ) {
-      const message =
-        freshnessMessage(
-          "12H",
-          latestH12,
-          MAX_H12_CANDLE_AGE_MS
-        );
-
-      setPairWait(
-        item,
-        `Waiting - ${message}`
-      );
-
-      item.price =
-        latestM5.close;
-
-      item.analysis = {
-        market:
-          "OPEN",
-        m5Fresh:
-          true,
-        h1Fresh:
-          true,
-        h12Fresh:
-          false,
-        candleTime:
-          latestH12.datetime
-      };
-
-      return;
-    }
-
-    /*
-      Analyze.
-    */
-
     const signal =
       analyzeEntry(
         pair,
@@ -2877,51 +2575,34 @@ async function scanPair(
       analyzeTrend(h12);
 
     /*
-      Update dashboard.
+       Update dashboard.
     */
-
     item.status =
       signal.status;
-
-    item.signal =
-      signal.status ===
-      "BUY"
-        ? "STRONG BUY"
-        : signal.status ===
-          "SELL"
-          ? "STRONG SELL"
-          : "WAIT";
 
     item.score =
       signal.score || 0;
 
     item.entry =
-      signal.entry ||
-      null;
+      signal.entry || null;
 
     item.stopLoss =
-      signal.stopLoss ||
-      null;
+      signal.stopLoss || null;
 
     item.takeProfit =
-      signal.takeProfit ||
-      null;
+      signal.takeProfit || null;
 
     item.message =
       signal.message ||
       "Waiting for confirmation";
 
-    item.detail =
-      item.message;
-
     item.price =
-      latestM5.close;
+      m5[
+        m5.length - 1
+      ].close;
 
     item.updated =
       Date.now();
-
-    item.updatedAt =
-      item.updated;
 
     item.timeframes = {
       h12: {
@@ -2952,36 +2633,39 @@ async function scanPair(
     };
 
     item.analysis =
-      signal.analysis ||
-      {};
+      signal.analysis || {};
 
     /*
-      Add freshness information.
+       If market is closed,
+       force dashboard to WAIT.
     */
 
-    item.analysis.market =
-      "OPEN";
+    if (
+      !isMarketOpen()
+    ) {
+      item.status =
+        "WAIT";
 
-    item.analysis.m5Fresh =
-      true;
+      item.entry =
+        null;
 
-    item.analysis.h1Fresh =
-      true;
+      item.stopLoss =
+        null;
 
-    item.analysis.h12Fresh =
-      true;
+      item.takeProfit =
+        null;
 
-    item.analysis.m5CandleTime =
-      latestM5.datetime;
+      item.message =
+        `${marketStatusMessage()} | ` +
+        `12H ${h12Analysis.trend} | ` +
+        `1H ${h1Analysis.trend}`;
 
-    item.analysis.h1CandleTime =
-      latestH1.datetime;
-
-    item.analysis.h12CandleTime =
-      latestH12.datetime;
+      return;
+    }
 
     /*
-      ONLY SEND BUY/SELL >= 4/5.
+       Telegram alert only for
+       4/5 or better.
     */
 
     if (
@@ -2994,65 +2678,6 @@ async function scanPair(
       signal.score >= 4 &&
       state.alerts
     ) {
-      /*
-        FINAL MARKET CHECK immediately
-        before Telegram.
-      */
-
-      const currentMarket =
-        updateMarketStatus();
-
-      if (
-        !currentMarket.open
-      ) {
-        console.log(
-          `${pair}: Signal blocked because market closed`
-        );
-
-        item.status =
-          "WAIT";
-
-        item.signal =
-          "WAIT";
-
-        item.message =
-          `Signal blocked - ${currentMarket.reason}`;
-
-        item.detail =
-          item.message;
-
-        return;
-      }
-
-      /*
-        FINAL M5 freshness check.
-      */
-
-      if (
-        !isCandleFresh(
-          latestM5,
-          MAX_M5_CANDLE_AGE_MS
-        )
-      ) {
-        console.log(
-          `${pair}: Signal blocked because M5 candle became stale`
-        );
-
-        item.status =
-          "WAIT";
-
-        item.signal =
-          "WAIT";
-
-        item.message =
-          "Signal blocked - M5 candle became stale";
-
-        item.detail =
-          item.message;
-
-        return;
-      }
-
       if (
         shouldSendSignal(
           pair,
@@ -3065,7 +2690,9 @@ async function scanPair(
             signal
           );
 
-        if (sent) {
+        if (
+          sent
+        ) {
           state.performance
             .totalSignals++;
 
@@ -3086,55 +2713,15 @@ async function scanPair(
       }
     }
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       `${pair} scan error:`,
       error.message
     );
 
-    /*
-      Rate limit should stop the
-      current scan.
-    */
-
-    if (
-      /429|rate.limit|credit|cooldown/i
-        .test(
-          error.message
-        )
-    ) {
-      item.status =
-        "OFFLINE";
-
-      item.signal =
-        "OFFLINE";
-
-      item.score =
-        0;
-
-      item.message =
-        error.message;
-
-      item.detail =
-        error.message;
-
-      item.updated =
-        Date.now();
-
-      item.updatedAt =
-        item.updated;
-
-      throw error;
-    }
-
-    /*
-      Other errors.
-    */
-
     item.status =
-      "OFFLINE";
-
-    item.signal =
       "OFFLINE";
 
     item.score =
@@ -3152,14 +2739,19 @@ async function scanPair(
     item.message =
       error.message;
 
-    item.detail =
-      error.message;
-
     item.updated =
       Date.now();
 
-    item.updatedAt =
-      item.updated;
+    /*
+       Stop scanning if API
+       rate limit occurs.
+    */
+    if (
+      /429|rate.limit|credit|cooldown/i
+        .test(error.message)
+    ) {
+      throw error;
+    }
   }
 }
 
@@ -3184,103 +2776,41 @@ async function scan() {
   state.scanStarted =
     isoNow();
 
+  state.marketOpen =
+    isMarketOpen();
+
   state.api.requestsThisScan =
     0;
 
   try {
     /*
-      Update market state.
+       API key check.
     */
-
-    const market =
-      updateMarketStatus();
-
-    /*
-      No API requests when market is closed.
-    */
-
     if (
-      !market.open
+      !API_KEY
     ) {
-      console.log(
-        `Market closed: ${market.reason}`
-      );
-
-      for (
-        const pair of PAIRS
-      ) {
-        setPairWait(
-          state.pairs[pair],
-          `Market closed - ${market.reason}`
-        );
-
-        state.pairs[
-          pair
-        ].analysis = {
-          market:
-            "CLOSED"
-        };
-      }
-
-      state.lastScan =
-        isoNow();
-
-      return;
-    }
-
-    /*
-      API configuration check.
-    */
-
-    if (!API_KEY) {
       state.api.status =
         "NOT CONFIGURED";
 
       for (
         const pair of PAIRS
       ) {
-        state.pairs[
-          pair
-        ].status =
+        state.pairs[pair].status =
           "OFFLINE";
 
-        state.pairs[
-          pair
-        ].signal =
-          "OFFLINE";
-
-        state.pairs[
-          pair
-        ].message =
+        state.pairs[pair].message =
           "TWELVE_DATA_API_KEY is not configured";
 
-        state.pairs[
-          pair
-        ].detail =
-          state.pairs[
-            pair
-          ].message;
-
-        state.pairs[
-          pair
-        ].updated =
+        state.pairs[pair].updated =
           Date.now();
-
-        state.pairs[
-          pair
-        ].updatedAt =
-          state.pairs[
-            pair
-          ].updated;
       }
 
       return;
     }
 
     /*
-      API cooldown check.
+       API cooldown.
     */
-
     if (
       Date.now() <
       apiCooldownUntil
@@ -3299,73 +2829,81 @@ async function scan() {
       for (
         const pair of PAIRS
       ) {
-        state.pairs[
-          pair
-        ].status =
+        state.pairs[pair].status =
           "OFFLINE";
 
-        state.pairs[
-          pair
-        ].signal =
-          "OFFLINE";
-
-        state.pairs[
-          pair
-        ].message =
+        state.pairs[pair].message =
           `Twelve Data rate-limit cooldown (${seconds}s)`;
 
-        state.pairs[
-          pair
-        ].detail =
-          state.pairs[
-            pair
-          ].message;
-
-        state.pairs[
-          pair
-        ].updated =
+        state.pairs[pair].updated =
           Date.now();
-
-        state.pairs[
-          pair
-        ].updatedAt =
-          state.pairs[
-            pair
-          ].updated;
       }
 
       return;
     }
 
     /*
-      IMPORTANT:
-      One pair at a time.
+       If market is closed,
+       do not request market data.
+
+       This prevents unnecessary API usage
+       during weekends.
+    */
+
+    if (
+      !isMarketOpen()
+    ) {
+      state.marketOpen =
+        false;
+
+      for (
+        const pair of PAIRS
+      ) {
+        const item =
+          state.pairs[pair];
+
+        item.status =
+          "WAIT";
+
+        item.entry =
+          null;
+
+        item.stopLoss =
+          null;
+
+        item.takeProfit =
+          null;
+
+        item.message =
+          "MARKET CLOSED — No signals will be sent";
+
+        item.updated =
+          Date.now();
+      }
+
+      state.lastScan =
+        isoNow();
+
+      return;
+    }
+
+    state.marketOpen =
+      true;
+
+    /*
+       Scan one pair at a time.
     */
 
     for (
       const pair of PAIRS
     ) {
       try {
-        /*
-          Check market before every pair.
-        */
-
-        const currentMarket =
-          updateMarketStatus();
-
-        if (
-          !currentMarket.open
-        ) {
-          console.log(
-            "Market closed during scan. Stopping."
-          );
-
-          break;
-        }
-
-        await scanPair(pair);
-
-      } catch (error) {
+        await scanPair(
+          pair
+        );
+      } catch (
+        error
+      ) {
         console.error(
           `Stopping scan after API problem on ${pair}:`,
           error.message
@@ -3373,9 +2911,7 @@ async function scan() {
 
         if (
           /429|rate.limit|credit|cooldown/i
-            .test(
-              error.message
-            )
+            .test(error.message)
         ) {
           break;
         }
@@ -3385,7 +2921,9 @@ async function scan() {
     state.lastScan =
       isoNow();
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Global scan error:",
       error.message
@@ -3404,20 +2942,24 @@ async function scan() {
 }
 
 /* =========================================================
-   API ROUTES
+   STATUS
 ========================================================= */
 
 app.get(
   "/api/status",
   (req, res) => {
-    updateMarketStatus();
-
     res.json({
       online:
         state.online,
 
       alerts:
         state.alerts,
+
+      marketOpen:
+        isMarketOpen(),
+
+      marketStatus:
+        marketStatusMessage(),
 
       lastScan:
         state.lastScan,
@@ -3437,8 +2979,11 @@ app.get(
       timeframe:
         ENTRY_TIMEFRAME,
 
-      market:
-        state.market,
+      higherTimeframe:
+        HIGHER_TIMEFRAME,
+
+      confirmation:
+        "12H + 1H + 5M",
 
       pairs:
         state.pairs,
@@ -3452,6 +2997,10 @@ app.get(
   }
 );
 
+/* =========================================================
+   PAIRS
+========================================================= */
+
 app.get(
   "/api/pairs",
   (req, res) => {
@@ -3462,39 +3011,16 @@ app.get(
   }
 );
 
-/*
-===========================================================
-GET ALERT STATUS
-
-This fixes the frontend calling:
-GET /api/alerts
-===========================================================
-*/
-
-app.get(
-  "/api/alerts",
-  (req, res) => {
-    res.json({
-      ok: true,
-      enabled:
-        state.alerts
-    });
-  }
-);
-
-/*
-===========================================================
-HEALTH
-===========================================================
-*/
+/* =========================================================
+   HEALTH
+========================================================= */
 
 app.get(
   "/api/health",
   (req, res) => {
-    updateMarketStatus();
-
     res.json({
-      status: "ok",
+      status:
+        "ok",
 
       online:
         true,
@@ -3502,14 +3028,30 @@ app.get(
       timestamp:
         isoNow(),
 
+      marketOpen:
+        isMarketOpen(),
+
       apiConfigured:
         Boolean(API_KEY),
 
       scanning:
-        state.scanning,
+        state.scanning
+    });
+  }
+);
 
-      market:
-        state.market
+/* =========================================================
+   ALERT STATUS
+========================================================= */
+
+app.get(
+  "/api/alerts",
+  (req, res) => {
+    res.json({
+      ok: true,
+
+      enabled:
+        state.alerts
     });
   }
 );
@@ -3520,7 +3062,10 @@ app.get(
 
 app.post(
   "/api/scan",
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
     if (
       state.scanning
     ) {
@@ -3556,7 +3101,10 @@ app.post(
 
 app.post(
   "/api/alerts",
-  (req, res) => {
+  (
+    req,
+    res
+  ) => {
     if (
       typeof req.body.enabled ===
       "boolean"
@@ -3569,27 +3117,7 @@ app.post(
       ok: true,
 
       enabled:
-        state.alerts,
-
-      alerts:
         state.alerts
-    });
-  }
-);
-
-/* =========================================================
-   MARKET STATUS
-========================================================= */
-
-app.get(
-  "/api/market",
-  (req, res) => {
-    const market =
-      updateMarketStatus();
-
-    res.json({
-      ok: true,
-      market
     });
   }
 );
@@ -3600,7 +3128,10 @@ app.get(
 
 app.get(
   "/",
-  (req, res) => {
+  (
+    req,
+    res
+  ) => {
     res.sendFile(
       path.join(
         __dirname,
@@ -3669,6 +3200,14 @@ app.listen(
     );
 
     console.log(
+      "12H timeframe: BUILT FROM 1000 H1 CANDLES"
+    );
+
+    console.log(
+      `Market status: ${marketStatusMessage()}`
+    );
+
+    console.log(
       `API configured: ${Boolean(API_KEY)}`
     );
 
@@ -3677,29 +3216,12 @@ app.listen(
     );
 
     console.log(
-      `Request gap: ${REQUEST_GAP_MS}ms`
-    );
-
-    console.log(
-      `Poll interval: ${POLL_MS}ms`
-    );
-
-    console.log(
-      "Market protection: ENABLED"
-    );
-
-    console.log(
-      "Stale candle protection: ENABLED"
-    );
-
-    console.log(
       "========================================"
     );
 
     /*
-      First scan after 3 seconds.
+       First scan after startup.
     */
-
     setTimeout(
       () => {
         scan().catch(
@@ -3715,9 +3237,8 @@ app.listen(
     );
 
     /*
-      Continue scanning.
+       Continue scanning.
     */
-
     setInterval(
       () => {
         scan().catch(
