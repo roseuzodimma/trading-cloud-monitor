@@ -9,11 +9,15 @@ app.use(express.static(path.join(__dirname, "public")));
 /*
 ===========================================================
 TRADING CLOUD MONITOR
-12H + 1H + 5M
-SMC + EMA + RSI + ATR
-Pullback + Rejection Confirmation
-Late Entry Protection
-Telegram Alerts
+Multi-Timeframe + SMC + RSI + EMA + ATR
+
+PROTECTIONS:
+- Forex/Gold market-hours protection
+- Weekend protection
+- Stale-candle protection
+- Twelve Data rate-limit protection
+- Duplicate signal protection
+- Late-entry protection
 ===========================================================
 */
 
@@ -48,38 +52,64 @@ const POLL_MS = Math.max(
 );
 
 const REQUEST_GAP_MS = Math.max(
-  9500,
+  3000,
   Number(process.env.REQUEST_GAP_MS || 9500)
 );
 
-const M5_CACHE_MS =
-  4 * 60 * 1000;
+/*
+   Cache durations.
+*/
+const M5_CACHE_MS = 5 * 60 * 1000;
+const H1_CACHE_MS = 60 * 60 * 1000;
 
-const H1_CACHE_MS =
-  55 * 60 * 1000;
-
+/*
+   API cooldown after rate limit.
+*/
 const API_COOLDOWN_MS =
   5 * 60 * 1000;
 
 /*
-   Signal quality.
+===========================================================
+CANDLE FRESHNESS
+
+The bot will NOT generate a live signal from old candles.
+
+M5:
+12 minutes maximum age.
+
+H1:
+90 minutes maximum age.
+
+12H:
+14 hours maximum age.
+===========================================================
 */
-const MIN_SIGNAL_SCORE = 4;
+
+const MAX_M5_CANDLE_AGE_MS =
+  12 * 60 * 1000;
+
+const MAX_H1_CANDLE_AGE_MS =
+  90 * 60 * 1000;
+
+const MAX_H12_CANDLE_AGE_MS =
+  14 * 60 * 60 * 1000;
 
 /*
-   Risk/reward.
-*/
-const RISK_REWARD = 2;
+===========================================================
+MARKET HOURS
 
-/*
-   Late-entry protection.
-*/
-const MAX_EMA_DISTANCE_ATR = 1.25;
-const MAX_CANDLE_ATR = 1.60;
+Forex normally closes Friday around 22:00 UTC
+and opens Sunday around 22:00 UTC.
 
-/* =========================================================
-   GLOBAL API STATE
-========================================================= */
+The bot blocks weekend trading.
+
+This also protects XAU/USD because Gold is closed
+during the normal weekend trading period.
+===========================================================
+*/
+
+const MARKET_CLOSE_UTC_HOUR = 22;
+const MARKET_OPEN_UTC_HOUR = 22;
 
 let apiCooldownUntil = 0;
 let lastApiRequest = 0;
@@ -102,6 +132,13 @@ const state = {
   scanFinished: null,
 
   pairs: {},
+
+  market: {
+    open: false,
+    status: "UNKNOWN",
+    reason: "Checking market hours...",
+    checkedAt: null
+  },
 
   api: {
     configured: Boolean(API_KEY),
@@ -132,13 +169,20 @@ const state = {
   lastSignalKey: {}
 };
 
-/* =========================================================
-   INITIALIZE PAIRS
-========================================================= */
-
 for (const pair of PAIRS) {
   state.pairs[pair] = {
     symbol: pair,
+
+    /*
+      Dashboard-compatible aliases.
+    */
+    pair: pair,
+
+    signal: "WAIT",
+
+    detail: "Waiting for market data...",
+
+    updatedAt: null,
 
     status: "WAIT",
 
@@ -181,7 +225,7 @@ for (const pair of PAIRS) {
 }
 
 /* =========================================================
-   HELPERS
+   BASIC HELPERS
 ========================================================= */
 
 function sleep(ms) {
@@ -194,10 +238,7 @@ function isoNow() {
   return new Date().toISOString();
 }
 
-function roundPrice(
-  value,
-  digits = 5
-) {
+function roundPrice(value, digits = 5) {
   if (!Number.isFinite(value)) {
     return null;
   }
@@ -219,31 +260,197 @@ function priceDigits(pair) {
   return 5;
 }
 
-function clamp(
-  value,
-  min,
-  max
+function validNumber(value) {
+  return Number.isFinite(Number(value));
+}
+
+/* =========================================================
+   MARKET HOURS
+========================================================= */
+
+function getMarketStatus() {
+  const now = new Date();
+
+  const day =
+    now.getUTCDay();
+
+  const hour =
+    now.getUTCHours();
+
+  const minute =
+    now.getUTCMinutes();
+
+  const currentMinutes =
+    hour * 60 + minute;
+
+  const openMinutes =
+    MARKET_OPEN_UTC_HOUR * 60;
+
+  const closeMinutes =
+    MARKET_CLOSE_UTC_HOUR * 60;
+
+  /*
+    Saturday = closed.
+  */
+  if (day === 6) {
+    return {
+      open: false,
+      status: "CLOSED",
+      reason:
+        "Weekend - market closed",
+      checkedAt: isoNow()
+    };
+  }
+
+  /*
+    Sunday before 22:00 UTC = closed.
+  */
+  if (
+    day === 0 &&
+    currentMinutes < openMinutes
+  ) {
+    return {
+      open: false,
+      status: "CLOSED",
+      reason:
+        "Sunday - market opens at 22:00 UTC",
+      checkedAt: isoNow()
+    };
+  }
+
+  /*
+    Friday 22:00 UTC onward = closed.
+  */
+  if (
+    day === 5 &&
+    currentMinutes >= closeMinutes
+  ) {
+    return {
+      open: false,
+      status: "CLOSED",
+      reason:
+        "Friday after 22:00 UTC - market closed",
+      checkedAt: isoNow()
+    };
+  }
+
+  /*
+    Otherwise market is considered open.
+  */
+  return {
+    open: true,
+    status: "OPEN",
+    reason:
+      "Market trading hours",
+    checkedAt: isoNow()
+  };
+}
+
+function updateMarketStatus() {
+  const market =
+    getMarketStatus();
+
+  state.market = market;
+
+  return market;
+}
+
+/* =========================================================
+   CANDLE DATE HELPERS
+========================================================= */
+
+function candleTimestamp(candle) {
+  if (
+    !candle ||
+    !candle.datetime
+  ) {
+    return null;
+  }
+
+  const timestamp =
+    new Date(
+      candle.datetime
+    ).getTime();
+
+  if (
+    !Number.isFinite(timestamp)
+  ) {
+    return null;
+  }
+
+  return timestamp;
+}
+
+function candleAgeMs(candle) {
+  const timestamp =
+    candleTimestamp(candle);
+
+  if (timestamp === null) {
+    return Infinity;
+  }
+
+  return (
+    Date.now() -
+    timestamp
+  );
+}
+
+function isCandleFresh(
+  candle,
+  maxAgeMs
 ) {
-  return Math.min(
-    Math.max(value, min),
-    max
+  const age =
+    candleAgeMs(candle);
+
+  return (
+    age >= 0 &&
+    age <= maxAgeMs
+  );
+}
+
+function freshnessMessage(
+  timeframe,
+  candle,
+  maxAgeMs
+) {
+  const timestamp =
+    candleTimestamp(candle);
+
+  if (timestamp === null) {
+    return `${timeframe} candle timestamp unavailable`;
+  }
+
+  const ageMinutes =
+    Math.round(
+      candleAgeMs(candle) /
+        60000
+    );
+
+  return (
+    `${timeframe} candle is stale ` +
+    `(${ageMinutes} minutes old, ` +
+    `maximum ${Math.round(
+      maxAgeMs / 60000
+    )} minutes)`
   );
 }
 
 /* =========================================================
-   API RATE LIMIT
+   API RATE LIMITER
 ========================================================= */
 
 async function waitForApiSlot() {
   const elapsed =
-    Date.now() - lastApiRequest;
+    Date.now() -
+    lastApiRequest;
 
   if (
     elapsed <
     REQUEST_GAP_MS
   ) {
     await sleep(
-      REQUEST_GAP_MS - elapsed
+      REQUEST_GAP_MS -
+        elapsed
     );
   }
 
@@ -261,7 +468,9 @@ async function getCandles(
   outputsize = 100
 ) {
   if (!API_KEY) {
-    state.api.configured = false;
+    state.api.configured =
+      false;
+
     state.api.status =
       "NOT CONFIGURED";
 
@@ -325,7 +534,7 @@ async function getCandles(
   try {
     data =
       await response.json();
-  } catch {
+  } catch (error) {
     state.api.status =
       "INVALID RESPONSE";
 
@@ -337,6 +546,9 @@ async function getCandles(
     );
   }
 
+  /*
+    HTTP 429
+  */
   if (
     response.status === 429
   ) {
@@ -356,7 +568,7 @@ async function getCandles(
       ).toISOString();
 
     state.api.lastError =
-      "Twelve Data HTTP 429";
+      "Twelve Data HTTP 429 - API limit reached";
 
     throw new Error(
       "Twelve Data HTTP 429 - API limit reached"
@@ -375,6 +587,9 @@ async function getCandles(
     );
   }
 
+  /*
+    Twelve Data error response.
+  */
   if (
     data &&
     (
@@ -474,7 +689,7 @@ async function getCandles(
       .reverse();
 
   if (
-    candles.length < 60
+    candles.length < 30
   ) {
     throw new Error(
       "Insufficient candle data"
@@ -497,7 +712,8 @@ async function getCandles(
    CACHE
 ========================================================= */
 
-const cache = new Map();
+const cache =
+  new Map();
 
 function cacheKey(
   pair,
@@ -511,20 +727,22 @@ function getCache(
   timeframe,
   maxAge
 ) {
-  const item =
-    cache.get(
-      cacheKey(
-        pair,
-        timeframe
-      )
+  const key =
+    cacheKey(
+      pair,
+      timeframe
     );
+
+  const item =
+    cache.get(key);
 
   if (!item) {
     return null;
   }
 
   if (
-    Date.now() - item.time >
+    Date.now() -
+      item.time >
     maxAge
   ) {
     return null;
@@ -570,7 +788,10 @@ function ema(
 
   let result =
     values
-      .slice(0, period)
+      .slice(
+        0,
+        period
+      )
       .reduce(
         (sum, value) =>
           sum + value,
@@ -587,7 +808,7 @@ function ema(
         values[i] -
         result
       ) *
-        multiplier +
+      multiplier +
       result;
   }
 
@@ -621,7 +842,9 @@ function rsi(
       values[i] -
       values[i - 1];
 
-    if (change >= 0) {
+    if (
+      change >= 0
+    ) {
       gains += change;
     } else {
       losses +=
@@ -629,10 +852,10 @@ function rsi(
     }
   }
 
-  let avgGain =
+  let averageGain =
     gains / period;
 
-  let avgLoss =
+  let averageLoss =
     losses / period;
 
   for (
@@ -645,32 +868,41 @@ function rsi(
       values[i - 1];
 
     const gain =
-      Math.max(change, 0);
+      Math.max(
+        change,
+        0
+      );
 
     const loss =
-      Math.max(-change, 0);
+      Math.max(
+        -change,
+        0
+      );
 
-    avgGain =
+    averageGain =
       (
-        avgGain *
+        averageGain *
           (period - 1) +
         gain
       ) / period;
 
-    avgLoss =
+    averageLoss =
       (
-        avgLoss *
+        averageLoss *
           (period - 1) +
         loss
       ) / period;
   }
 
-  if (avgLoss === 0) {
+  if (
+    averageLoss === 0
+  ) {
     return 100;
   }
 
   const rs =
-    avgGain / avgLoss;
+    averageGain /
+    averageLoss;
 
   return (
     100 -
@@ -693,7 +925,8 @@ function atr(
     return null;
   }
 
-  const trs = [];
+  const trueRanges =
+    [];
 
   for (
     let i = 1;
@@ -706,42 +939,54 @@ function atr(
     const previous =
       candles[i - 1];
 
-    trs.push(
+    const tr =
       Math.max(
         current.high -
           current.low,
 
         Math.abs(
           current.high -
-            previous.close
+          previous.close
         ),
 
         Math.abs(
           current.low -
-            previous.close
+          previous.close
         )
-      )
-    );
+      );
+
+    trueRanges.push(tr);
+  }
+
+  if (
+    trueRanges.length <
+    period
+  ) {
+    return null;
   }
 
   let value =
-    trs
-      .slice(0, period)
+    trueRanges
+      .slice(
+        0,
+        period
+      )
       .reduce(
-        (a, b) => a + b,
+        (a, b) =>
+          a + b,
         0
       ) / period;
 
   for (
     let i = period;
-    i < trs.length;
+    i < trueRanges.length;
     i++
   ) {
     value =
       (
         value *
           (period - 1) +
-        trs[i]
+        trueRanges[i]
       ) / period;
   }
 
@@ -749,7 +994,7 @@ function atr(
 }
 
 /* =========================================================
-   STRUCTURE
+   MARKET STRUCTURE
 ========================================================= */
 
 function highest(
@@ -841,43 +1086,66 @@ function lowest(
 }
 
 /* =========================================================
-   CANDLE FUNCTIONS
+   CANDLE HELPERS
 ========================================================= */
 
-function candleBody(c) {
+function candleBody(
+  candle
+) {
   return Math.abs(
-    c.close - c.open
+    candle.close -
+      candle.open
   );
 }
 
-function candleRange(c) {
-  return c.high - c.low;
-}
-
-function bullishCandle(c) {
-  return c.close > c.open;
-}
-
-function bearishCandle(c) {
-  return c.close < c.open;
-}
-
-function upperWick(c) {
+function candleRange(
+  candle
+) {
   return (
-    c.high -
+    candle.high -
+    candle.low
+  );
+}
+
+function bullishCandle(
+  candle
+) {
+  return (
+    candle.close >
+    candle.open
+  );
+}
+
+function bearishCandle(
+  candle
+) {
+  return (
+    candle.close <
+    candle.open
+  );
+}
+
+function upperWick(
+  candle
+) {
+  return (
+    candle.high -
     Math.max(
-      c.open,
-      c.close
+      candle.open,
+      candle.close
     )
   );
 }
 
-function lowerWick(c) {
+function lowerWick(
+  candle
+) {
   return (
     Math.min(
-      c.open,
-      c.close
-    ) - c.low
+      candle.open,
+      candle.close
+    ) -
+    candle.low
   );
 }
 
@@ -885,52 +1153,60 @@ function lowerWick(c) {
    REJECTION
 ========================================================= */
 
-function bullishRejection(c) {
+function bullishRejection(
+  candle
+) {
   const range =
-    candleRange(c);
+    candleRange(candle);
 
-  if (range <= 0) {
+  if (
+    range <= 0
+  ) {
     return false;
   }
 
   const body =
-    candleBody(c);
+    candleBody(candle);
 
   const lower =
-    lowerWick(c);
+    lowerWick(candle);
 
   return (
     lower >=
       body * 1.5 &&
     lower >=
       range * 0.30 &&
-    c.close >
-      c.low +
+    candle.close >
+      candle.low +
         range * 0.55
   );
 }
 
-function bearishRejection(c) {
+function bearishRejection(
+  candle
+) {
   const range =
-    candleRange(c);
+    candleRange(candle);
 
-  if (range <= 0) {
+  if (
+    range <= 0
+  ) {
     return false;
   }
 
   const body =
-    candleBody(c);
+    candleBody(candle);
 
   const upper =
-    upperWick(c);
+    upperWick(candle);
 
   return (
     upper >=
       body * 1.5 &&
     upper >=
       range * 0.30 &&
-    c.close <
-      c.high -
+    candle.close <
+      candle.high -
         range * 0.55
   );
 }
@@ -964,27 +1240,34 @@ function analyzeTrend(
       closes.length - 1
     ];
 
-  const ema20Value =
-    ema(closes, 20);
+  const ema20 =
+    ema(
+      closes,
+      20
+    );
 
-  const ema50Value =
-    ema(closes, 50);
+  const ema50 =
+    ema(
+      closes,
+      50
+    );
 
   const rsiValue =
-    rsi(closes, 14);
+    rsi(
+      closes,
+      14
+    );
 
   if (
-    ema20Value === null ||
-    ema50Value === null ||
+    ema20 === null ||
+    ema50 === null ||
     rsiValue === null
   ) {
     return {
       trend: "NEUTRAL",
       rsi: null,
-      ema20:
-        ema20Value,
-      ema50:
-        ema50Value
+      ema20,
+      ema50
     };
   }
 
@@ -992,20 +1275,16 @@ function analyzeTrend(
     "NEUTRAL";
 
   if (
-    current >
-      ema20Value &&
-    ema20Value >
-      ema50Value
+    current > ema20 &&
+    ema20 > ema50
   ) {
     trend =
       "BULLISH";
   }
 
   if (
-    current <
-      ema20Value &&
-    ema20Value <
-      ema50Value
+    current < ema20 &&
+    ema20 < ema50
   ) {
     trend =
       "BEARISH";
@@ -1019,55 +1298,60 @@ function analyzeTrend(
         rsiValue.toFixed(1)
       ),
 
-    ema20:
-      ema20Value,
+    ema20,
 
-    ema50:
-      ema50Value
+    ema50
   };
 }
 
 /* =========================================================
-   BUILD 12H
+   BUILD 12H FROM 1H
 ========================================================= */
 
 function build12HCandles(
   hourly
 ) {
+  if (
+    !Array.isArray(hourly) ||
+    hourly.length < 24
+  ) {
+    return [];
+  }
+
   const groups =
     new Map();
 
   for (
     const candle of hourly
   ) {
-    const d =
+    const date =
       new Date(
         candle.datetime
       );
 
     if (
       Number.isNaN(
-        d.getTime()
+        date.getTime()
       )
     ) {
       continue;
     }
 
     const year =
-      d.getUTCFullYear();
+      date.getUTCFullYear();
 
     const month =
       String(
-        d.getUTCMonth() + 1
+        date.getUTCMonth() + 1
       ).padStart(2, "0");
 
     const day =
       String(
-        d.getUTCDate()
+        date.getUTCDate()
       ).padStart(2, "0");
 
     const hour =
-      d.getUTCHours();
+      date.getUTCHours();
 
     const bucket =
       hour < 12
@@ -1079,7 +1363,9 @@ function build12HCandles(
         bucket
       ).padStart(2, "0")}:00:00`;
 
-    if (!groups.has(key)) {
+    if (
+      !groups.has(key)
+    ) {
       groups.set(
         key,
         []
@@ -1091,7 +1377,8 @@ function build12HCandles(
       .push(candle);
   }
 
-  const result = [];
+  const result =
+    [];
 
   for (
     const [
@@ -1100,7 +1387,7 @@ function build12HCandles(
     ] of groups
   ) {
     if (
-      candles.length < 10
+      candles.length < 8
     ) {
       continue;
     }
@@ -1150,11 +1437,9 @@ function build12HCandles(
         candles.reduce(
           (sum, c) =>
             sum +
-            (
-              Number(
-                c.volume
-              ) || 0
-            ),
+            (Number(
+              c.volume
+            ) || 0),
           0
         )
     });
@@ -1172,7 +1457,7 @@ function build12HCandles(
 }
 
 /* =========================================================
-   SMC
+   SIMPLE SMC
 ========================================================= */
 
 function analyzeSMC(
@@ -1185,7 +1470,8 @@ function analyzeSMC(
     return {
       bias: "NEUTRAL",
       bos: false,
-      sweep: false
+      sweep: false,
+      strength: "WEAK"
     };
   }
 
@@ -1234,12 +1520,20 @@ function analyzeSMC(
       recentHigh;
 
   const bullish =
-    bullishCandle(last) ||
-    bullishCandle(previous);
+    bullishCandle(
+      last
+    ) ||
+    bullishCandle(
+      previous
+    );
 
   const bearish =
-    bearishCandle(last) ||
-    bearishCandle(previous);
+    bearishCandle(
+      last
+    ) ||
+    bearishCandle(
+      previous
+    );
 
   if (
     bullishBOS &&
@@ -1248,7 +1542,8 @@ function analyzeSMC(
     return {
       bias: "BULLISH",
       bos: true,
-      sweep: bullishSweep
+      sweep: bullishSweep,
+      strength: "STRONG"
     };
   }
 
@@ -1259,7 +1554,8 @@ function analyzeSMC(
     return {
       bias: "BEARISH",
       bos: true,
-      sweep: bearishSweep
+      sweep: bearishSweep,
+      strength: "STRONG"
     };
   }
 
@@ -1270,7 +1566,8 @@ function analyzeSMC(
     return {
       bias: "BULLISH",
       bos: false,
-      sweep: true
+      sweep: true,
+      strength: "CONFIRMED"
     };
   }
 
@@ -1281,74 +1578,17 @@ function analyzeSMC(
     return {
       bias: "BEARISH",
       bos: false,
-      sweep: true
+      sweep: true,
+      strength: "CONFIRMED"
     };
   }
 
   return {
     bias: "NEUTRAL",
     bos: false,
-    sweep: false
+    sweep: false,
+    strength: "WEAK"
   };
-}
-
-/* =========================================================
-   PULLBACK DETECTION
-========================================================= */
-
-function detectPullback(
-  candles,
-  direction,
-  ema20Value
-) {
-  if (
-    candles.length < 8
-  ) {
-    return false;
-  }
-
-  const recent =
-    candles.slice(-8);
-
-  if (
-    direction === "BUY"
-  ) {
-    const touchedEMA =
-      recent.some(
-        c =>
-          c.low <=
-          ema20Value
-      );
-
-    const bearishCandleSeen =
-      recent.some(
-        c =>
-          bearishCandle(c)
-      );
-
-    return (
-      touchedEMA &&
-      bearishCandleSeen
-    );
-  }
-
-  const touchedEMA =
-    recent.some(
-      c =>
-        c.high >=
-        ema20Value
-    );
-
-  const bullishCandleSeen =
-    recent.some(
-      c =>
-        bullishCandle(c)
-    );
-
-  return (
-    touchedEMA &&
-    bullishCandleSeen
-  );
 }
 
 /* =========================================================
@@ -1361,22 +1601,22 @@ function analyzeEntry(
   h1,
   h12
 ) {
-  const digits =
-    priceDigits(pair);
-
   if (
-    m5.length < 80 ||
-    h1.length < 60 ||
+    m5.length < 60 ||
+    h1.length < 50 ||
     h12.length < 20
   ) {
     return {
       status: "WAIT",
       score: 0,
       message:
-        "Waiting for sufficient market data",
+        "Waiting for enough market data",
       analysis: {}
     };
   }
+
+  const digits =
+    priceDigits(pair);
 
   const current =
     m5[
@@ -1393,24 +1633,36 @@ function analyzeEntry(
       c => c.close
     );
 
-  const price =
+  const currentPrice =
     current.close;
 
-  const ema20Value =
-    ema(closes, 20);
+  const ema20 =
+    ema(
+      closes,
+      20
+    );
 
-  const ema50Value =
-    ema(closes, 50);
+  const ema50 =
+    ema(
+      closes,
+      50
+    );
 
   const rsiValue =
-    rsi(closes, 14);
+    rsi(
+      closes,
+      14
+    );
 
   const atrValue =
-    atr(m5, 14);
+    atr(
+      m5,
+      14
+    );
 
   if (
-    ema20Value === null ||
-    ema50Value === null ||
+    ema20 === null ||
+    ema50 === null ||
     rsiValue === null ||
     atrValue === null
   ) {
@@ -1418,70 +1670,52 @@ function analyzeEntry(
       status: "WAIT",
       score: 0,
       message:
-        "Indicators calculating...",
+        "Calculating indicators...",
       analysis: {}
     };
   }
 
-  const h12Trend =
-    analyzeTrend(h12);
-
   const h1Trend =
     analyzeTrend(h1);
 
-  const h12SMC =
-    analyzeSMC(h12);
+  const h12Trend =
+    analyzeTrend(h12);
 
   const h1SMC =
     analyzeSMC(h1);
 
-  /* =======================================================
-     5M TREND
-  ======================================================= */
-
-  const bullish5 =
-    price >
-      ema20Value &&
-    ema20Value >
-      ema50Value;
-
-  const bearish5 =
-    price <
-      ema20Value &&
-    ema20Value <
-      ema50Value;
+  const h12SMC =
+    analyzeSMC(h12);
 
   /* =======================================================
      5M STRUCTURE
   ======================================================= */
 
-  const previousHigh =
+  const structureHigh =
     highest(
       m5,
-      12,
+      10,
       2
     );
 
-  const previousLow =
+  const structureLow =
     lowest(
       m5,
-      12,
+      10,
       2
     );
 
   const bullishBreak =
-    price >
-      previousHigh &&
-    bullishCandle(current);
+    current.close >
+      structureHigh &&
+    current.close >
+      current.open;
 
   const bearishBreak =
-    price <
-      previousLow &&
-    bearishCandle(current);
-
-  /* =======================================================
-     REJECTION
-  ======================================================= */
+    current.close <
+      structureLow &&
+    current.close <
+      current.open;
 
   const bullReject =
     bullishRejection(
@@ -1500,38 +1734,36 @@ function analyzeEntry(
     );
 
   /* =======================================================
-     PULLBACK
+     5M TREND
   ======================================================= */
 
-  const bullPullback =
-    detectPullback(
-      m5,
-      "BUY",
-      ema20Value
-    );
+  const bullish5 =
+    currentPrice >
+      ema20 &&
+    ema20 >
+      ema50;
 
-  const bearPullback =
-    detectPullback(
-      m5,
-      "SELL",
-      ema20Value
-    );
+  const bearish5 =
+    currentPrice <
+      ema20 &&
+    ema20 <
+      ema50;
 
   /* =======================================================
-     LOCATION
+     PULLBACK / LOCATION
   ======================================================= */
 
   const recentHigh =
     highest(
       m5,
-      24,
+      20,
       1
     );
 
   const recentLow =
     lowest(
       m5,
-      24,
+      20,
       1
     );
 
@@ -1542,25 +1774,24 @@ function analyzeEntry(
   let location =
     "MID";
 
-  let rangePosition =
-    0.5;
-
-  if (range > 0) {
-    rangePosition =
+  if (
+    range > 0
+  ) {
+    const position =
       (
-        price -
+        currentPrice -
         recentLow
       ) / range;
 
     if (
-      rangePosition <=
-      0.35
+      position <= 0.40
     ) {
       location =
         "LOWER RANGE";
-    } else if (
-      rangePosition >=
-      0.65
+    }
+
+    if (
+      position >= 0.60
     ) {
       location =
         "UPPER RANGE";
@@ -1571,40 +1802,185 @@ function analyzeEntry(
      LATE ENTRY PROTECTION
   ======================================================= */
 
-  const emaDistance =
+  const distanceFromEMA =
     Math.abs(
-      price -
-      ema20Value
+      currentPrice -
+      ema20
     );
 
-  const extended =
-    emaDistance >
-    atrValue *
-      MAX_EMA_DISTANCE_ATR;
+  const tooFarFromEMA =
+    distanceFromEMA >
+    atrValue * 1.5;
 
-  const candleTooLarge =
-    candleRange(current) >
-    atrValue *
-      MAX_CANDLE_ATR;
+  const hugeBull =
+    bullishCandle(
+      current
+    ) &&
+    candleRange(
+      current
+    ) >
+      atrValue * 1.8;
 
-  const buyLate =
-    (
-      location ===
-        "UPPER RANGE"
-    ) ||
-    extended ||
-    candleTooLarge;
+  const hugeBear =
+    bearishCandle(
+      current
+    ) &&
+    candleRange(
+      current
+    ) >
+      atrValue * 1.8;
 
-  const sellLate =
-    (
-      location ===
-        "LOWER RANGE"
-    ) ||
-    extended ||
-    candleTooLarge;
+  const buyBadLocation =
+    location ===
+      "UPPER RANGE" &&
+    bullishBreak;
+
+  const sellBadLocation =
+    location ===
+      "LOWER RANGE" &&
+    bearishBreak;
 
   /* =======================================================
-     HIGHER-TIMEFRAME BIAS
+     SCORES
+  ======================================================= */
+
+  let buyScore = 0;
+  let sellScore = 0;
+
+  const buyReasons =
+    [];
+
+  const sellReasons =
+    [];
+
+  /* 12H */
+
+  if (
+    h12Trend.trend ===
+    "BULLISH"
+  ) {
+    buyScore++;
+
+    buyReasons.push(
+      "12H bullish"
+    );
+  }
+
+  if (
+    h12Trend.trend ===
+    "BEARISH"
+  ) {
+    sellScore++;
+
+    sellReasons.push(
+      "12H bearish"
+    );
+  }
+
+  /* 1H */
+
+  if (
+    h1Trend.trend ===
+    "BULLISH"
+  ) {
+    buyScore++;
+
+    buyReasons.push(
+      "1H bullish"
+    );
+  }
+
+  if (
+    h1Trend.trend ===
+    "BEARISH"
+  ) {
+    sellScore++;
+
+    sellReasons.push(
+      "1H bearish"
+    );
+  }
+
+  /* 5M */
+
+  if (bullish5) {
+    buyScore++;
+
+    buyReasons.push(
+      "5M trend"
+    );
+  }
+
+  if (bearish5) {
+    sellScore++;
+
+    sellReasons.push(
+      "5M trend"
+    );
+  }
+
+  /* SMC / Breakout */
+
+  if (
+    bullishBreak ||
+    bullReject ||
+    h1SMC.bias ===
+      "BULLISH"
+  ) {
+    buyScore++;
+
+    buyReasons.push(
+      bullishBreak
+        ? "5M breakout"
+        : bullReject
+          ? "bullish rejection"
+          : "SMC bullish"
+    );
+  }
+
+  if (
+    bearishBreak ||
+    bearReject ||
+    h1SMC.bias ===
+      "BEARISH"
+  ) {
+    sellScore++;
+
+    sellReasons.push(
+      bearishBreak
+        ? "5M breakout"
+        : bearReject
+          ? "bearish rejection"
+          : "SMC bearish"
+    );
+  }
+
+  /* RSI */
+
+  if (
+    rsiValue >= 52 &&
+    rsiValue <= 68
+  ) {
+    buyScore++;
+
+    buyReasons.push(
+      "RSI confirmation"
+    );
+  }
+
+  if (
+    rsiValue >= 32 &&
+    rsiValue <= 48
+  ) {
+    sellScore++;
+
+    sellReasons.push(
+      "RSI confirmation"
+    );
+  }
+
+  /* =======================================================
+     HIGHER TIMEFRAME CONFIRMATION
   ======================================================= */
 
   const buyHigherTF =
@@ -1635,132 +2011,18 @@ function analyzeEntry(
         "BEARISH"
     );
 
-  /* =======================================================
-     SCORE
-  ======================================================= */
-
-  let buyScore = 0;
-  let sellScore = 0;
-
-  const buyReasons = [];
-  const sellReasons = [];
-
-  if (
-    h12Trend.trend ===
-    "BULLISH"
-  ) {
-    buyScore++;
-    buyReasons.push(
-      "12H bullish"
-    );
-  }
-
-  if (
-    h1Trend.trend ===
-    "BULLISH"
-  ) {
-    buyScore++;
-    buyReasons.push(
-      "1H bullish"
-    );
-  }
-
-  if (bullish5) {
-    buyScore++;
-    buyReasons.push(
-      "5M bullish"
-    );
-  }
-
-  if (
-    bullReject ||
-    bullishBreak
-  ) {
-    buyScore++;
-    buyReasons.push(
-      bullReject
-        ? "bullish rejection"
-        : "5M BOS"
-    );
-  }
-
-  if (
-    rsiValue >= 50 &&
-    rsiValue <= 67
-  ) {
-    buyScore++;
-    buyReasons.push(
-      `RSI ${rsiValue.toFixed(1)}`
-    );
-  }
-
-  if (
-    h12Trend.trend ===
-    "BEARISH"
-  ) {
-    sellScore++;
-    sellReasons.push(
-      "12H bearish"
-    );
-  }
-
-  if (
-    h1Trend.trend ===
-    "BEARISH"
-  ) {
-    sellScore++;
-    sellReasons.push(
-      "1H bearish"
-    );
-  }
-
-  if (bearish5) {
-    sellScore++;
-    sellReasons.push(
-      "5M bearish"
-    );
-  }
-
-  if (
-    bearReject ||
-    bearishBreak
-  ) {
-    sellScore++;
-    sellReasons.push(
-      bearReject
-        ? "bearish rejection"
-        : "5M BOS"
-    );
-  }
-
-  if (
-    rsiValue >= 33 &&
-    rsiValue <= 50
-  ) {
-    sellScore++;
-    sellReasons.push(
-      `RSI ${rsiValue.toFixed(1)}`
-    );
-  }
-
-  /* =======================================================
-     ENTRY CONFIRMATION
-  ======================================================= */
-
   const buyConfirmation =
     bullish5 &&
-    bullPullback &&
     (
-      bullReject ||
-      bullishBreak
+      bullishBreak ||
+      bullReject
     );
 
   const sellConfirmation =
     bearish5 &&
-    bearPullback &&
     (
-      bearReject ||
-      bearishBreak
+      bearishBreak ||
+      bearReject
     );
 
   /* =======================================================
@@ -1768,11 +2030,12 @@ function analyzeEntry(
   ======================================================= */
 
   if (
-    buyScore >=
-      MIN_SIGNAL_SCORE &&
+    buyScore >= 4 &&
     buyHigherTF &&
     buyConfirmation &&
-    !buyLate
+    !tooFarFromEMA &&
+    !hugeBull &&
+    !buyBadLocation
   ) {
     let sl =
       lowest(
@@ -1782,19 +2045,27 @@ function analyzeEntry(
       );
 
     if (
-      !Number.isFinite(sl) ||
-      sl >= price
+      !Number.isFinite(sl)
     ) {
       sl =
-        price -
+        currentPrice -
         atrValue * 1.2;
     }
 
     sl -=
-      atrValue * 0.15;
+      atrValue * 0.20;
+
+    if (
+      sl >= currentPrice
+    ) {
+      sl =
+        currentPrice -
+        atrValue * 1.2;
+    }
 
     const risk =
-      price - sl;
+      currentPrice -
+      sl;
 
     if (
       risk <= 0
@@ -1809,23 +2080,21 @@ function analyzeEntry(
     }
 
     const tp =
-      price +
-      risk *
-        RISK_REWARD;
+      currentPrice +
+      risk * 2;
 
     return {
       status: "BUY",
 
       score:
-        clamp(
+        Math.min(
           buyScore,
-          0,
           5
         ),
 
       entry:
         roundPrice(
-          price,
+          currentPrice,
           digits
         ),
 
@@ -1865,11 +2134,15 @@ function analyzeEntry(
           h1SMC.bias,
 
         m5Trend:
-          "BULLISH",
+          bullish5
+            ? "BULLISH"
+            : "NEUTRAL",
 
         rsi:
           Number(
-            rsiValue.toFixed(1)
+            rsiValue.toFixed(
+              1
+            )
           ),
 
         atr:
@@ -1878,20 +2151,15 @@ function analyzeEntry(
             digits
           ),
 
-        pullback:
-          bullPullback,
+        breakout:
+          bullishBreak,
 
         rejection:
           bullReject,
 
-        breakout:
-          bullishBreak,
-
         location,
 
-        extended: false,
-
-        lateEntry: false
+        extended: false
       }
     };
   }
@@ -1901,11 +2169,12 @@ function analyzeEntry(
   ======================================================= */
 
   if (
-    sellScore >=
-      MIN_SIGNAL_SCORE &&
+    sellScore >= 4 &&
     sellHigherTF &&
     sellConfirmation &&
-    !sellLate
+    !tooFarFromEMA &&
+    !hugeBear &&
+    !sellBadLocation
   ) {
     let sl =
       highest(
@@ -1915,19 +2184,27 @@ function analyzeEntry(
       );
 
     if (
-      !Number.isFinite(sl) ||
-      sl <= price
+      !Number.isFinite(sl)
     ) {
       sl =
-        price +
+        currentPrice +
         atrValue * 1.2;
     }
 
     sl +=
-      atrValue * 0.15;
+      atrValue * 0.20;
+
+    if (
+      sl <= currentPrice
+    ) {
+      sl =
+        currentPrice +
+        atrValue * 1.2;
+    }
 
     const risk =
-      sl - price;
+      sl -
+      currentPrice;
 
     if (
       risk <= 0
@@ -1942,23 +2219,21 @@ function analyzeEntry(
     }
 
     const tp =
-      price -
-      risk *
-        RISK_REWARD;
+      currentPrice -
+      risk * 2;
 
     return {
       status: "SELL",
 
       score:
-        clamp(
+        Math.min(
           sellScore,
-          0,
           5
         ),
 
       entry:
         roundPrice(
-          price,
+          currentPrice,
           digits
         ),
 
@@ -1998,11 +2273,15 @@ function analyzeEntry(
           h1SMC.bias,
 
         m5Trend:
-          "BEARISH",
+          bearish5
+            ? "BEARISH"
+            : "NEUTRAL",
 
         rsi:
           Number(
-            rsiValue.toFixed(1)
+            rsiValue.toFixed(
+              1
+            )
           ),
 
         atr:
@@ -2011,20 +2290,15 @@ function analyzeEntry(
             digits
           ),
 
-        pullback:
-          bearPullback,
+        breakout:
+          bearishBreak,
 
         rejection:
           bearReject,
 
-        breakout:
-          bearishBreak,
-
         location,
 
-        extended: false,
-
-        lateEntry: false
+        extended: false
       }
     };
   }
@@ -2043,26 +2317,27 @@ function analyzeEntry(
           ? "BEARISH"
           : "NEUTRAL"
     } | ` +
-    `RSI ${rsiValue.toFixed(1)}`;
+    `RSI ${rsiValue.toFixed(
+      1
+    )}`;
 
   if (
-    buyLate ||
-    sellLate
+    tooFarFromEMA
   ) {
     reason +=
-      " | Late-entry protection active";
+      " | Price extended - waiting for pullback";
   } else if (
-    !buyHigherTF &&
-    !sellHigherTF
+    hugeBull ||
+    hugeBear
   ) {
     reason +=
-      " | Waiting for higher-timeframe alignment";
+      " | Large candle - avoiding late entry";
   } else if (
-    !bullPullback &&
-    !bearPullback
+    buyBadLocation ||
+    sellBadLocation
   ) {
     reason +=
-      " | Waiting for pullback";
+      " | Avoiding late range entry";
   } else {
     reason +=
       " | Waiting for 5M confirmation";
@@ -2072,12 +2347,11 @@ function analyzeEntry(
     status: "WAIT",
 
     score:
-      clamp(
+      Math.min(
         Math.max(
           buyScore,
           sellScore
         ),
-        0,
         5
       ),
 
@@ -2096,42 +2370,29 @@ function analyzeEntry(
       h1SMC:
         h1SMC.bias,
 
-      m5Trend:
-        bullish5
-          ? "BULLISH"
-          : bearish5
-            ? "BEARISH"
-            : "NEUTRAL",
-
       rsi:
         Number(
-          rsiValue.toFixed(1)
+          rsiValue.toFixed(
+            1
+          )
         ),
 
       buyScore,
 
       sellScore,
 
-      pullback:
-        bullPullback ||
-        bearPullback,
+      breakout:
+        bullishBreak ||
+        bearishBreak,
 
       rejection:
         bullReject ||
         bearReject,
 
-      breakout:
-        bullishBreak ||
-        bearishBreak,
-
       location,
 
       extended:
-        extended,
-
-      lateEntry:
-        buyLate ||
-        sellLate
+        tooFarFromEMA
     }
   };
 }
@@ -2144,6 +2405,23 @@ async function sendTelegramSignal(
   pair,
   signal
 ) {
+  /*
+    FINAL SAFETY CHECK.
+    Even if another part of the program calls this function,
+    NEVER send a signal while market is closed.
+  */
+
+  const market =
+    updateMarketStatus();
+
+  if (!market.open) {
+    console.log(
+      `Telegram BLOCKED: ${pair} - ${market.reason}`
+    );
+
+    return false;
+  }
+
   if (
     !TELEGRAM_BOT_TOKEN ||
     !TELEGRAM_CHAT_ID
@@ -2168,18 +2446,13 @@ async function sendTelegramSignal(
 🎯 Take Profit: ${signal.takeProfit}
 
 ⭐ Score: ${signal.score}/5
-
 📊 ${signal.message}
 
-⏱ Entry: 5M
-🔎 Confirmation: 12H + 1H + 5M
+⏱ Entry TF: 5M
+🔎 Confirmation: 1H + 12H + 5M
 💰 Risk/Reward: 1:2
 
-✅ Pullback confirmed
-✅ Entry confirmation confirmed
-🛡️ Late-entry filter passed
-
-⚠️ Always confirm the setup before entering.`;
+⚠️ Signal confirmation required before entry.`;
 
   try {
     const response =
@@ -2206,7 +2479,9 @@ async function sendTelegramSignal(
     const result =
       await response.json();
 
-    if (!result.ok) {
+    if (
+      !result.ok
+    ) {
       console.error(
         "Telegram error:",
         result
@@ -2223,7 +2498,7 @@ async function sendTelegramSignal(
 
   } catch (error) {
     console.error(
-      "Telegram error:",
+      "Telegram connection error:",
       error.message
     );
 
@@ -2232,7 +2507,7 @@ async function sendTelegramSignal(
 }
 
 /* =========================================================
-   DUPLICATE SIGNAL
+   DUPLICATE SIGNAL PROTECTION
 ========================================================= */
 
 function signalKey(
@@ -2272,7 +2547,7 @@ function shouldSendSignal(
 }
 
 /* =========================================================
-   M5
+   GET CACHED 5M
 ========================================================= */
 
 async function getM5(
@@ -2293,7 +2568,7 @@ async function getM5(
     await getCandles(
       pair,
       ENTRY_TIMEFRAME,
-      150
+      120
     );
 
   setCache(
@@ -2306,7 +2581,7 @@ async function getM5(
 }
 
 /* =========================================================
-   H1
+   GET CACHED 1H
 ========================================================= */
 
 async function getH1(
@@ -2340,7 +2615,47 @@ async function getH1(
 }
 
 /* =========================================================
-   SCAN PAIR
+   UPDATE PAIR WAIT STATUS
+========================================================= */
+
+function setPairWait(
+  item,
+  message,
+  score = 0
+) {
+  item.status =
+    "WAIT";
+
+  item.signal =
+    "WAIT";
+
+  item.score =
+    score;
+
+  item.entry =
+    null;
+
+  item.stopLoss =
+    null;
+
+  item.takeProfit =
+    null;
+
+  item.message =
+    message;
+
+  item.detail =
+    message;
+
+  item.updated =
+    Date.now();
+
+  item.updatedAt =
+    item.updated;
+}
+
+/* =========================================================
+   SCAN ONE PAIR
 ========================================================= */
 
 async function scanPair(
@@ -2350,33 +2665,202 @@ async function scanPair(
     state.pairs[pair];
 
   try {
+    /*
+      Market status is checked BEFORE
+      requesting/analyzing the pair.
+    */
+
+    const market =
+      updateMarketStatus();
+
+    if (
+      !market.open
+    ) {
+      setPairWait(
+        item,
+        `Market closed - ${market.reason}`
+      );
+
+      item.analysis = {
+        market:
+          "CLOSED"
+      };
+
+      return;
+    }
+
+    /*
+      Get M5.
+    */
+
     const m5 =
       await getM5(pair);
+
+    /*
+      STALE M5 PROTECTION.
+
+      This is the important fix for the
+      weekend signal problem.
+    */
+
+    const latestM5 =
+      m5[
+        m5.length - 1
+      ];
+
+    if (
+      !isCandleFresh(
+        latestM5,
+        MAX_M5_CANDLE_AGE_MS
+      )
+    ) {
+      const message =
+        freshnessMessage(
+          "5M",
+          latestM5,
+          MAX_M5_CANDLE_AGE_MS
+        );
+
+      setPairWait(
+        item,
+        `Waiting - ${message}`
+      );
+
+      item.price =
+        latestM5.close;
+
+      item.analysis = {
+        market:
+          "OPEN",
+        candleFresh:
+          false,
+        candleTime:
+          latestM5.datetime
+      };
+
+      return;
+    }
+
+    /*
+      Get H1.
+    */
 
     const h1 =
       await getH1(pair);
 
-    const h12 =
-      build12HCandles(h1);
+    const latestH1 =
+      h1[
+        h1.length - 1
+      ];
+
+    /*
+      H1 freshness protection.
+    */
 
     if (
-      m5.length < 80 ||
-      h1.length < 60 ||
-      h12.length < 20
+      !isCandleFresh(
+        latestH1,
+        MAX_H1_CANDLE_AGE_MS
+      )
     ) {
-      item.status =
-        "WAIT";
+      const message =
+        freshnessMessage(
+          "1H",
+          latestH1,
+          MAX_H1_CANDLE_AGE_MS
+        );
 
-      item.score = 0;
+      setPairWait(
+        item,
+        `Waiting - ${message}`
+      );
 
-      item.message =
-        "Waiting for sufficient timeframe data";
+      item.price =
+        latestM5.close;
 
-      item.updated =
-        Date.now();
+      item.analysis = {
+        market:
+          "OPEN",
+        m5Fresh:
+          true,
+        h1Fresh:
+          false,
+        candleTime:
+          latestH1.datetime
+      };
 
       return;
     }
+
+    /*
+      Build 12H locally from H1.
+    */
+
+    const h12 =
+      build12HCandles(
+        h1
+      );
+
+    if (
+      h12.length < 20
+    ) {
+      setPairWait(
+        item,
+        "Waiting for enough 12H data"
+      );
+
+      return;
+    }
+
+    /*
+      Check latest 12H candle.
+    */
+
+    const latestH12 =
+      h12[
+        h12.length - 1
+      ];
+
+    if (
+      !isCandleFresh(
+        latestH12,
+        MAX_H12_CANDLE_AGE_MS
+      )
+    ) {
+      const message =
+        freshnessMessage(
+          "12H",
+          latestH12,
+          MAX_H12_CANDLE_AGE_MS
+        );
+
+      setPairWait(
+        item,
+        `Waiting - ${message}`
+      );
+
+      item.price =
+        latestM5.close;
+
+      item.analysis = {
+        market:
+          "OPEN",
+        m5Fresh:
+          true,
+        h1Fresh:
+          true,
+        h12Fresh:
+          false,
+        candleTime:
+          latestH12.datetime
+      };
+
+      return;
+    }
+
+    /*
+      Analyze.
+    */
 
     const signal =
       analyzeEntry(
@@ -2392,32 +2876,52 @@ async function scanPair(
     const h12Analysis =
       analyzeTrend(h12);
 
+    /*
+      Update dashboard.
+    */
+
     item.status =
       signal.status;
+
+    item.signal =
+      signal.status ===
+      "BUY"
+        ? "STRONG BUY"
+        : signal.status ===
+          "SELL"
+          ? "STRONG SELL"
+          : "WAIT";
 
     item.score =
       signal.score || 0;
 
     item.entry =
-      signal.entry || null;
+      signal.entry ||
+      null;
 
     item.stopLoss =
-      signal.stopLoss || null;
+      signal.stopLoss ||
+      null;
 
     item.takeProfit =
-      signal.takeProfit || null;
+      signal.takeProfit ||
+      null;
 
     item.message =
       signal.message ||
       "Waiting for confirmation";
 
+    item.detail =
+      item.message;
+
     item.price =
-      m5[
-        m5.length - 1
-      ].close;
+      latestM5.close;
 
     item.updated =
       Date.now();
+
+    item.updatedAt =
+      item.updated;
 
     item.timeframes = {
       h12: {
@@ -2438,19 +2942,47 @@ async function scanPair(
 
       m5: {
         trend:
-          signal.analysis
-            ?.m5Trend ||
+          signal.analysis?.m5Trend ||
           "UNKNOWN",
 
         rsi:
-          signal.analysis
-            ?.rsi ||
+          signal.analysis?.rsi ||
           null
       }
     };
 
     item.analysis =
-      signal.analysis || {};
+      signal.analysis ||
+      {};
+
+    /*
+      Add freshness information.
+    */
+
+    item.analysis.market =
+      "OPEN";
+
+    item.analysis.m5Fresh =
+      true;
+
+    item.analysis.h1Fresh =
+      true;
+
+    item.analysis.h12Fresh =
+      true;
+
+    item.analysis.m5CandleTime =
+      latestM5.datetime;
+
+    item.analysis.h1CandleTime =
+      latestH1.datetime;
+
+    item.analysis.h12CandleTime =
+      latestH12.datetime;
+
+    /*
+      ONLY SEND BUY/SELL >= 4/5.
+    */
 
     if (
       (
@@ -2459,10 +2991,68 @@ async function scanPair(
         signal.status ===
           "SELL"
       ) &&
-      signal.score >=
-        MIN_SIGNAL_SCORE &&
+      signal.score >= 4 &&
       state.alerts
     ) {
+      /*
+        FINAL MARKET CHECK immediately
+        before Telegram.
+      */
+
+      const currentMarket =
+        updateMarketStatus();
+
+      if (
+        !currentMarket.open
+      ) {
+        console.log(
+          `${pair}: Signal blocked because market closed`
+        );
+
+        item.status =
+          "WAIT";
+
+        item.signal =
+          "WAIT";
+
+        item.message =
+          `Signal blocked - ${currentMarket.reason}`;
+
+        item.detail =
+          item.message;
+
+        return;
+      }
+
+      /*
+        FINAL M5 freshness check.
+      */
+
+      if (
+        !isCandleFresh(
+          latestM5,
+          MAX_M5_CANDLE_AGE_MS
+        )
+      ) {
+        console.log(
+          `${pair}: Signal blocked because M5 candle became stale`
+        );
+
+        item.status =
+          "WAIT";
+
+        item.signal =
+          "WAIT";
+
+        item.message =
+          "Signal blocked - M5 candle became stale";
+
+        item.detail =
+          item.message;
+
+        return;
+      }
+
       if (
         shouldSendSignal(
           pair,
@@ -2483,16 +3073,14 @@ async function scanPair(
             signal.status ===
             "BUY"
           ) {
-            state.performance
-              .buys++;
+            state.performance.buys++;
           }
 
           if (
             signal.status ===
             "SELL"
           ) {
-            state.performance
-              .sells++;
+            state.performance.sells++;
           }
         }
       }
@@ -2504,22 +3092,10 @@ async function scanPair(
       error.message
     );
 
-    item.status =
-      "OFFLINE";
-
-    item.score = 0;
-
-    item.entry = null;
-
-    item.stopLoss = null;
-
-    item.takeProfit = null;
-
-    item.message =
-      error.message;
-
-    item.updated =
-      Date.now();
+    /*
+      Rate limit should stop the
+      current scan.
+    */
 
     if (
       /429|rate.limit|credit|cooldown/i
@@ -2527,8 +3103,63 @@ async function scanPair(
           error.message
         )
     ) {
+      item.status =
+        "OFFLINE";
+
+      item.signal =
+        "OFFLINE";
+
+      item.score =
+        0;
+
+      item.message =
+        error.message;
+
+      item.detail =
+        error.message;
+
+      item.updated =
+        Date.now();
+
+      item.updatedAt =
+        item.updated;
+
       throw error;
     }
+
+    /*
+      Other errors.
+    */
+
+    item.status =
+      "OFFLINE";
+
+    item.signal =
+      "OFFLINE";
+
+    item.score =
+      0;
+
+    item.entry =
+      null;
+
+    item.stopLoss =
+      null;
+
+    item.takeProfit =
+      null;
+
+    item.message =
+      error.message;
+
+    item.detail =
+      error.message;
+
+    item.updated =
+      Date.now();
+
+    item.updatedAt =
+      item.updated;
   }
 }
 
@@ -2537,9 +3168,11 @@ async function scanPair(
 ========================================================= */
 
 async function scan() {
-  if (state.scanning) {
+  if (
+    state.scanning
+  ) {
     console.log(
-      "Scan already running."
+      "Scan already running. Skipping."
     );
 
     return;
@@ -2555,6 +3188,50 @@ async function scan() {
     0;
 
   try {
+    /*
+      Update market state.
+    */
+
+    const market =
+      updateMarketStatus();
+
+    /*
+      No API requests when market is closed.
+    */
+
+    if (
+      !market.open
+    ) {
+      console.log(
+        `Market closed: ${market.reason}`
+      );
+
+      for (
+        const pair of PAIRS
+      ) {
+        setPairWait(
+          state.pairs[pair],
+          `Market closed - ${market.reason}`
+        );
+
+        state.pairs[
+          pair
+        ].analysis = {
+          market:
+            "CLOSED"
+        };
+      }
+
+      state.lastScan =
+        isoNow();
+
+      return;
+    }
+
+    /*
+      API configuration check.
+    */
+
     if (!API_KEY) {
       state.api.status =
         "NOT CONFIGURED";
@@ -2562,18 +3239,47 @@ async function scan() {
       for (
         const pair of PAIRS
       ) {
-        state.pairs[pair].status =
+        state.pairs[
+          pair
+        ].status =
           "OFFLINE";
 
-        state.pairs[pair].message =
+        state.pairs[
+          pair
+        ].signal =
+          "OFFLINE";
+
+        state.pairs[
+          pair
+        ].message =
           "TWELVE_DATA_API_KEY is not configured";
 
-        state.pairs[pair].updated =
+        state.pairs[
+          pair
+        ].detail =
+          state.pairs[
+            pair
+          ].message;
+
+        state.pairs[
+          pair
+        ].updated =
           Date.now();
+
+        state.pairs[
+          pair
+        ].updatedAt =
+          state.pairs[
+            pair
+          ].updated;
       }
 
       return;
     }
+
+    /*
+      API cooldown check.
+    */
 
     if (
       Date.now() <
@@ -2593,14 +3299,39 @@ async function scan() {
       for (
         const pair of PAIRS
       ) {
-        state.pairs[pair].status =
+        state.pairs[
+          pair
+        ].status =
           "OFFLINE";
 
-        state.pairs[pair].message =
-          `Twelve Data cooldown (${seconds}s)`;
+        state.pairs[
+          pair
+        ].signal =
+          "OFFLINE";
 
-        state.pairs[pair].updated =
+        state.pairs[
+          pair
+        ].message =
+          `Twelve Data rate-limit cooldown (${seconds}s)`;
+
+        state.pairs[
+          pair
+        ].detail =
+          state.pairs[
+            pair
+          ].message;
+
+        state.pairs[
+          pair
+        ].updated =
           Date.now();
+
+        state.pairs[
+          pair
+        ].updatedAt =
+          state.pairs[
+            pair
+          ].updated;
       }
 
       return;
@@ -2608,17 +3339,35 @@ async function scan() {
 
     /*
       IMPORTANT:
-      Process pairs sequentially.
+      One pair at a time.
     */
 
     for (
       const pair of PAIRS
     ) {
       try {
+        /*
+          Check market before every pair.
+        */
+
+        const currentMarket =
+          updateMarketStatus();
+
+        if (
+          !currentMarket.open
+        ) {
+          console.log(
+            "Market closed during scan. Stopping."
+          );
+
+          break;
+        }
+
         await scanPair(pair);
+
       } catch (error) {
         console.error(
-          `Stopping scan after ${pair}:`,
+          `Stopping scan after API problem on ${pair}:`,
           error.message
         );
 
@@ -2655,15 +3404,15 @@ async function scan() {
 }
 
 /* =========================================================
-   STATUS API
+   API ROUTES
 ========================================================= */
 
 app.get(
   "/api/status",
   (req, res) => {
-    res.json({
-      ok: true,
+    updateMarketStatus();
 
+    res.json({
       online:
         state.online,
 
@@ -2688,8 +3437,8 @@ app.get(
       timeframe:
         ENTRY_TIMEFRAME,
 
-      higherTimeframe:
-        HIGHER_TIMEFRAME,
+      market:
+        state.market,
 
       pairs:
         state.pairs,
@@ -2703,36 +3452,52 @@ app.get(
   }
 );
 
-/* =========================================================
-   PAIRS API
-========================================================= */
-
 app.get(
   "/api/pairs",
   (req, res) => {
     res.json({
-      ok: true,
-
-      count:
-        PAIRS.length,
-
       pairs:
         state.pairs
     });
   }
 );
 
-/* =========================================================
-   HEALTH
-========================================================= */
+/*
+===========================================================
+GET ALERT STATUS
+
+This fixes the frontend calling:
+GET /api/alerts
+===========================================================
+*/
+
+app.get(
+  "/api/alerts",
+  (req, res) => {
+    res.json({
+      ok: true,
+      enabled:
+        state.alerts
+    });
+  }
+);
+
+/*
+===========================================================
+HEALTH
+===========================================================
+*/
 
 app.get(
   "/api/health",
   (req, res) => {
+    updateMarketStatus();
+
     res.json({
       status: "ok",
 
-      online: true,
+      online:
+        true,
 
       timestamp:
         isoNow(),
@@ -2740,11 +3505,11 @@ app.get(
       apiConfigured:
         Boolean(API_KEY),
 
-      pairs:
-        PAIRS.length,
-
       scanning:
-        state.scanning
+        state.scanning,
+
+      market:
+        state.market
     });
   }
 );
@@ -2756,7 +3521,9 @@ app.get(
 app.post(
   "/api/scan",
   async (req, res) => {
-    if (state.scanning) {
+    if (
+      state.scanning
+    ) {
       return res.json({
         ok: false,
 
@@ -2784,7 +3551,7 @@ app.post(
 );
 
 /* =========================================================
-   ALERTS
+   ALERT CONTROL
 ========================================================= */
 
 app.post(
@@ -2801,8 +3568,28 @@ app.post(
     res.json({
       ok: true,
 
+      enabled:
+        state.alerts,
+
       alerts:
         state.alerts
+    });
+  }
+);
+
+/* =========================================================
+   MARKET STATUS
+========================================================= */
+
+app.get(
+  "/api/market",
+  (req, res) => {
+    const market =
+      updateMarketStatus();
+
+    res.json({
+      ok: true,
+      market
     });
   }
 );
@@ -2825,22 +3612,7 @@ app.get(
 );
 
 /* =========================================================
-   404
-========================================================= */
-
-app.use(
-  (req, res) => {
-    res.status(404).json({
-      ok: false,
-
-      error:
-        "Route not found"
-    });
-  }
-);
-
-/* =========================================================
-   ERROR
+   ERROR HANDLER
 ========================================================= */
 
 app.use(
@@ -2866,7 +3638,7 @@ app.use(
 );
 
 /* =========================================================
-   START
+   START SERVER
 ========================================================= */
 
 app.listen(
@@ -2877,11 +3649,7 @@ app.listen(
     );
 
     console.log(
-      "TRADING CLOUD MONITOR"
-    );
-
-    console.log(
-      "========================================"
+      "Trading Cloud Monitor started"
     );
 
     console.log(
@@ -2901,16 +3669,27 @@ app.listen(
     );
 
     console.log(
-      `API configured: ${Boolean(
-        API_KEY
-      )}`
+      `API configured: ${Boolean(API_KEY)}`
     );
 
     console.log(
-      `Telegram configured: ${Boolean(
-        TELEGRAM_BOT_TOKEN &&
-        TELEGRAM_CHAT_ID
-      )}`
+      `Alerts enabled: ${state.alerts}`
+    );
+
+    console.log(
+      `Request gap: ${REQUEST_GAP_MS}ms`
+    );
+
+    console.log(
+      `Poll interval: ${POLL_MS}ms`
+    );
+
+    console.log(
+      "Market protection: ENABLED"
+    );
+
+    console.log(
+      "Stale candle protection: ENABLED"
     );
 
     console.log(
@@ -2918,7 +3697,7 @@ app.listen(
     );
 
     /*
-      Initial scan.
+      First scan after 3 seconds.
     */
 
     setTimeout(
@@ -2936,7 +3715,7 @@ app.listen(
     );
 
     /*
-      Automatic scans.
+      Continue scanning.
     */
 
     setInterval(
