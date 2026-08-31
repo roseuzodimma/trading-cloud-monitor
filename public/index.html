@@ -7,21 +7,14 @@
 <title>Trading Cloud Monitor</title>
 
 <style>
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
 body{
   font-family:Arial,sans-serif;
   margin:0;
   padding:18px;
   color:#eef4ff;
-  background:linear-gradient(
-    135deg,
-    #061226 0%,
-    #0a1933 52%,
-    #07101f 100%
-  );
+  background:linear-gradient(135deg,#061226 0%,#0a1933 52%,#07101f 100%);
   min-height:100vh;
 }
 
@@ -29,8 +22,6 @@ body{
   max-width:1150px;
   margin:auto;
 }
-
-/* HEADER */
 
 .header{
   display:flex;
@@ -46,9 +37,7 @@ body{
   gap:12px;
 }
 
-.logo{
-  font-size:32px;
-}
+.logo{font-size:32px}
 
 h1{
   font-size:25px;
@@ -78,12 +67,6 @@ h1{
   cursor:pointer;
 }
 
-.refresh:hover{
-  background:#17335d;
-}
-
-/* SUMMARY */
-
 .summary{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -102,9 +85,7 @@ h1{
   box-shadow:0 8px 30px rgba(0,0,0,.18);
 }
 
-.box{
-  padding:15px;
-}
+.box{padding:15px}
 
 .label{
   font-size:11px;
@@ -119,27 +100,10 @@ h1{
   margin-top:7px;
 }
 
-.green{
-  color:#19e68a;
-}
-
-.blue{
-  color:#55a8ff;
-}
-
-.purple{
-  color:#bd7cff;
-}
-
-.orange{
-  color:#ffb52e;
-}
-
-.red{
-  color:#ff5b65;
-}
-
-/* ALERT */
+.green{color:#19e68a}
+.blue{color:#55a8ff}
+.orange{color:#ffb52e}
+.red{color:#ff5b65}
 
 .alert-button{
   border:none;
@@ -166,11 +130,7 @@ h1{
   cursor:not-allowed;
 }
 
-/* SECTION */
-
-.section{
-  padding:16px;
-}
+.section{padding:16px}
 
 .section-title{
   display:flex;
@@ -189,15 +149,11 @@ h1{
   font-size:12px;
 }
 
-/* GRID */
-
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
   gap:11px;
 }
-
-/* CARD */
 
 .card{
   padding:15px;
@@ -226,21 +182,10 @@ h1{
   margin:6px 0;
 }
 
-.wait{
-  color:#ffbf2f;
-}
-
-.buy{
-  color:#19e68a;
-}
-
-.sell{
-  color:#ff5b65;
-}
-
-.offline{
-  color:#ff9f43;
-}
+.wait{color:#ffbf2f}
+.buy{color:#19e68a}
+.sell{color:#ff5b65}
+.offline{color:#ff9f43}
 
 .meta{
   font-size:12px;
@@ -256,8 +201,6 @@ h1{
   line-height:1.5;
 }
 
-/* DOT */
-
 .dot{
   width:10px;
   height:10px;
@@ -266,19 +209,9 @@ h1{
   background:#ffbf2f;
 }
 
-.buy-dot{
-  background:#19e68a;
-}
-
-.sell-dot{
-  background:#ff5b65;
-}
-
-.offline-dot{
-  background:#ff9f43;
-}
-
-/* TIMEFRAMES */
+.buy-dot{background:#19e68a}
+.sell-dot{background:#ff5b65}
+.offline-dot{background:#ff9f43}
 
 .timeframes{
   margin-top:13px;
@@ -312,8 +245,6 @@ h1{
   margin-top:4px;
 }
 
-/* TRADE */
-
 .trade{
   margin-top:12px;
   padding-top:10px;
@@ -331,8 +262,6 @@ h1{
   margin-top:4px;
   font-size:13px;
 }
-
-/* ANALYSIS */
 
 .analysis{
   margin-top:11px;
@@ -361,8 +290,6 @@ h1{
   font-weight:bold;
 }
 
-/* PERFORMANCE */
-
 .performance{
   margin-top:18px;
   display:grid;
@@ -390,8 +317,6 @@ h1{
   text-transform:uppercase;
 }
 
-/* API */
-
 .api-box{
   margin-top:18px;
   padding:15px;
@@ -408,8 +333,6 @@ h1{
   line-height:1.6;
 }
 
-/* ACTIONS */
-
 .actions{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -417,9 +340,7 @@ h1{
   margin-top:18px;
 }
 
-.action{
-  padding:17px;
-}
+.action{padding:17px}
 
 .action h3{
   margin:0 0 7px;
@@ -433,8 +354,6 @@ h1{
   line-height:1.5;
 }
 
-/* FOOTER */
-
 .footer{
   text-align:center;
   color:#627b9e;
@@ -442,10 +361,7 @@ h1{
   margin:18px 0 4px;
 }
 
-/* MOBILE */
-
 @media(max-width:900px){
-
   .summary{
     grid-template-columns:1fr 1fr;
   }
@@ -453,34 +369,24 @@ h1{
   .performance{
     grid-template-columns:repeat(3,1fr);
   }
-
 }
 
 @media(max-width:800px){
-
   .actions{
     grid-template-columns:1fr;
   }
-
 }
 
 @media(max-width:480px){
+  body{padding:12px}
 
-  body{
-    padding:12px;
-  }
-
-  h1{
-    font-size:21px;
-  }
+  h1{font-size:21px}
 
   .header{
     align-items:flex-start;
   }
 
-  .online{
-    display:none;
-  }
+  .online{display:none}
 
   .summary{
     grid-template-columns:1fr 1fr;
@@ -494,10 +400,6 @@ h1{
     grid-template-columns:1fr 1fr;
   }
 
-  .timeframes{
-    grid-template-columns:1fr 1fr 1fr;
-  }
-
   .performance{
     grid-template-columns:1fr 1fr;
   }
@@ -509,304 +411,271 @@ h1{
 
 <div class="wrap">
 
-  <!-- HEADER -->
+<div class="header">
 
-  <div class="header">
+  <div class="brand">
 
-    <div class="brand">
+    <div class="logo">📡</div>
 
-      <div class="logo">📡</div>
+    <div>
+      <h1>Trading Cloud Monitor</h1>
 
-      <div>
-
-        <h1>Trading Cloud Monitor</h1>
-
-        <div class="subtitle">
-          Smart Money Concepts • Multi-Timeframe
-        </div>
-
+      <div class="subtitle">
+        SMC • 12H + 1H + 5M Confirmation
       </div>
+    </div>
 
+  </div>
+
+  <div class="online" id="onlineText">
+    ● Connecting...
+  </div>
+
+  <button
+    class="refresh"
+    onclick="loadDashboard()"
+    title="Refresh dashboard">
+    ↻
+  </button>
+
+</div>
+
+
+<div class="summary">
+
+  <div class="box">
+
+    <div class="label">
+      System Status
     </div>
 
     <div
-      class="online"
-      id="onlineText"
-    >
-      ● Connecting...
+      class="value orange"
+      id="system">
+      Connecting...
+    </div>
+
+  </div>
+
+
+  <div class="box">
+
+    <div class="label">
+      Monitored Pairs
+    </div>
+
+    <div
+      class="value blue"
+      id="pairCount">
+      0
+    </div>
+
+  </div>
+
+
+  <div class="box">
+
+    <div class="label">
+      Telegram Alerts
     </div>
 
     <button
-      class="refresh"
-      onclick="loadDashboard()"
-      title="Refresh dashboard"
-    >
-      ↻
+      id="alertToggle"
+      class="alert-button"
+      type="button">
+      Loading...
     </button>
 
   </div>
 
 
-  <!-- SUMMARY -->
+  <div class="box">
 
-  <div class="summary">
-
-    <div class="box">
-
-      <div class="label">
-        System Status
-      </div>
-
-      <div
-        class="value orange"
-        id="system"
-      >
-        Connecting...
-      </div>
-
-    </div>
-
-
-    <div class="box">
-
-      <div class="label">
-        Monitored Pairs
-      </div>
-
-      <div
-        class="value blue"
-        id="pairCount"
-      >
-        0
-      </div>
-
-    </div>
-
-
-    <div class="box">
-
-      <div class="label">
-        Telegram Alerts
-      </div>
-
-      <button
-        id="alertToggle"
-        class="alert-button"
-        type="button"
-      >
-        Loading...
-      </button>
-
-    </div>
-
-
-    <div class="box">
-
-      <div class="label">
-        Last Scan
-      </div>
-
-      <div
-        class="value orange"
-        id="lastScan"
-      >
-        Starting...
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- MARKET -->
-
-  <div class="section">
-
-    <div class="section-title">
-
-      <h2>
-        🌐 Market Pairs Status
-      </h2>
-
-      <div
-        class="auto"
-        id="autoText"
-      >
-        ● Auto Refresh
-      </div>
-
-    </div>
-
-
-    <div
-      id="s"
-      class="meta"
-    >
-      Connecting to trading engine...
-    </div>
-
-
-    <div
-      id="g"
-      class="grid"
-    >
-    </div>
-
-  </div>
-
-
-  <!-- PERFORMANCE -->
-
-  <div class="performance">
-
-    <div class="perf">
-
-      <div class="perf-label">
-        Total Signals
-      </div>
-
-      <div
-        class="perf-number blue"
-        id="totalSignals"
-      >
-        0
-      </div>
-
-    </div>
-
-
-    <div class="perf">
-
-      <div class="perf-label">
-        BUY
-      </div>
-
-      <div
-        class="perf-number green"
-        id="buys"
-      >
-        0
-      </div>
-
-    </div>
-
-
-    <div class="perf">
-
-      <div class="perf-label">
-        SELL
-      </div>
-
-      <div
-        class="perf-number red"
-        id="sells"
-      >
-        0
-      </div>
-
-    </div>
-
-
-    <div class="perf">
-
-      <div class="perf-label">
-        Wins
-      </div>
-
-      <div
-        class="perf-number green"
-        id="wins"
-      >
-        0
-      </div>
-
-    </div>
-
-
-    <div class="perf">
-
-      <div class="perf-label">
-        Losses
-      </div>
-
-      <div
-        class="perf-number red"
-        id="losses"
-      >
-        0
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <!-- API -->
-
-  <div class="api-box">
-
-    <div class="api-title">
-      🔌 Data Connection
+    <div class="label">
+      Last Scan
     </div>
 
     <div
-      class="api-status"
-      id="apiStatus"
-    >
-      Checking Twelve Data connection...
+      class="value orange"
+      id="lastScan">
+      Starting...
     </div>
 
-  </div>
-
-
-  <!-- INFORMATION -->
-
-  <div class="actions">
-
-    <div class="action">
-
-      <h3>
-        📊 Multi-Timeframe Signal Engine
-      </h3>
-
-      <p>
-        The engine checks the 12H higher-timeframe
-        bias, 1H structure and 5M entry conditions
-        before allowing a strong BUY or SELL signal.
-      </p>
-
-    </div>
-
-
-    <div class="action">
-
-      <h3>
-        🧠 Smart Money Concepts
-      </h3>
-
-      <p>
-        SMC analysis monitors market structure,
-        BOS, CHoCH, liquidity, rejection and
-        breakout conditions.
-      </p>
-
-    </div>
-
-  </div>
-
-
-  <div class="footer">
-    © 2026 Trading Cloud Monitor. All rights reserved.
   </div>
 
 </div>
 
 
-<script>
+<div class="section">
 
-/* =========================================================
-   GLOBAL STATE
-========================================================= */
+  <div class="section-title">
+
+    <h2>
+      🌐 Market Pairs Status
+    </h2>
+
+    <div
+      class="auto"
+      id="autoText">
+      ● Auto Refresh
+    </div>
+
+  </div>
+
+
+  <div
+    id="s"
+    class="meta">
+    Connecting to trading engine...
+  </div>
+
+
+  <div
+    id="g"
+    class="grid">
+  </div>
+
+</div>
+
+
+<div class="performance">
+
+  <div class="perf">
+
+    <div class="perf-label">
+      Total Signals
+    </div>
+
+    <div
+      class="perf-number blue"
+      id="totalSignals">
+      0
+    </div>
+
+  </div>
+
+
+  <div class="perf">
+
+    <div class="perf-label">
+      BUY
+    </div>
+
+    <div
+      class="perf-number green"
+      id="buys">
+      0
+    </div>
+
+  </div>
+
+
+  <div class="perf">
+
+    <div class="perf-label">
+      SELL
+    </div>
+
+    <div
+      class="perf-number red"
+      id="sells">
+      0
+    </div>
+
+  </div>
+
+
+  <div class="perf">
+
+    <div class="perf-label">
+      Wins
+    </div>
+
+    <div
+      class="perf-number green"
+      id="wins">
+      0
+    </div>
+
+  </div>
+
+
+  <div class="perf">
+
+    <div class="perf-label">
+      Losses
+    </div>
+
+    <div
+      class="perf-number red"
+      id="losses">
+      0
+    </div>
+
+  </div>
+
+</div>
+
+
+<div class="api-box">
+
+  <div class="api-title">
+    🔌 Data Connection
+  </div>
+
+  <div
+    class="api-status"
+    id="apiStatus">
+    Checking Twelve Data connection...
+  </div>
+
+</div>
+
+
+<div class="actions">
+
+  <div class="action">
+
+    <h3>
+      📊 Three-Pair Signal Engine
+    </h3>
+
+    <p>
+      Monitoring only XAU/USD (Gold),
+      USD/CAD and GBP/JPY.
+      The system uses 12H direction,
+      1H structure and 5M entry confirmation.
+    </p>
+
+  </div>
+
+
+  <div class="action">
+
+    <h3>
+      🧠 Smart Money Concepts
+    </h3>
+
+    <p>
+      The engine checks BOS, CHoCH,
+      liquidity, rejection, breakout,
+      market location and over-extension
+      before producing a strong signal.
+    </p>
+
+  </div>
+
+</div>
+
+
+<div class="footer">
+  © 2026 Trading Cloud Monitor. All rights reserved.
+</div>
+
+</div>
+
+
+<script>
 
 let currentAlertState = true;
 
@@ -854,7 +723,6 @@ function formatTime(value){
     return "—";
 
   }
-
 }
 
 
@@ -869,12 +737,11 @@ function formatPrice(value){
   }
 
   return escapeHTML(value);
-
 }
 
 
 /* =========================================================
-   STATUS HELPERS
+   STATUS
 ========================================================= */
 
 function normalizeStatus(x){
@@ -901,7 +768,10 @@ function normalizeStatus(x){
     return "SELL";
   }
 
-  if(status === "OFFLINE"){
+  if(
+    status.includes("OFFLINE") ||
+    status.includes("ERROR")
+  ){
     return "OFFLINE";
   }
 
@@ -911,17 +781,11 @@ function normalizeStatus(x){
 
 function getSignalClass(status){
 
-  if(status === "BUY"){
-    return "buy";
-  }
+  if(status === "BUY") return "buy";
 
-  if(status === "SELL"){
-    return "sell";
-  }
+  if(status === "SELL") return "sell";
 
-  if(status === "OFFLINE"){
-    return "offline";
-  }
+  if(status === "OFFLINE") return "offline";
 
   return "wait";
 }
@@ -929,39 +793,19 @@ function getSignalClass(status){
 
 function getDotClass(status){
 
-  if(status === "BUY"){
-    return "buy-dot";
-  }
+  if(status === "BUY") return "buy-dot";
 
-  if(status === "SELL"){
-    return "sell-dot";
-  }
+  if(status === "SELL") return "sell-dot";
 
-  if(status === "OFFLINE"){
-    return "offline-dot";
-  }
+  if(status === "OFFLINE") return "offline-dot";
 
   return "";
 }
 
 
 /* =========================================================
-   VALUE HELPERS
+   TIMEFRAME
 ========================================================= */
-
-function displayValue(value){
-
-  if(
-    value === null ||
-    value === undefined ||
-    value === ""
-  ){
-    return "—";
-  }
-
-  return escapeHTML(value);
-}
-
 
 function trendValue(tf){
 
@@ -993,20 +837,7 @@ function rsiValue(tf){
 }
 
 
-/* =========================================================
-   TIMEFRAME
-========================================================= */
-
 function timeframeHTML(title,tf){
-
-  if(!tf){
-
-    tf = {
-      trend:"UNKNOWN",
-      rsi:null
-    };
-
-  }
 
   const trend =
     trendValue(tf);
@@ -1027,7 +858,6 @@ function timeframeHTML(title,tf){
       </div>
 
       <div class="tf-rsi">
-
         RSI:
         ${
           rsi !== null &&
@@ -1035,35 +865,24 @@ function timeframeHTML(title,tf){
             ? escapeHTML(rsi)
             : "—"
         }
-
       </div>
 
     </div>
 
   `;
-
 }
 
 
 /* =========================================================
-   ANALYSIS
+   SMC ANALYSIS
 ========================================================= */
 
-function getAnalysis(x){
-
-  return (
-    x.analysis ||
-    x.smc ||
-    {}
-  );
-
-}
-
-
-function analysisHTML(x,status){
+function analysisHTML(x){
 
   const a =
-    getAnalysis(x);
+    x.analysis ||
+    x.smc ||
+    {};
 
   const structure =
     a.structure ||
@@ -1077,7 +896,6 @@ function analysisHTML(x,status){
 
   const choch =
     a.choch ??
-    a.chocH ??
     x.choch ??
     "—";
 
@@ -1106,13 +924,13 @@ function analysisHTML(x,status){
     x.extended ??
     false;
 
-  const h12SMC =
+  const h12 =
     a.h12SMC ||
     a.h12 ||
     x.h12SMC ||
     "UNKNOWN";
 
-  const h1SMC =
+  const h1 =
     a.h1SMC ||
     a.h1 ||
     x.h1SMC ||
@@ -1134,110 +952,67 @@ function analysisHTML(x,status){
 
       <div class="analysis-row">
         <b>12H Bias</b>
-        <span>
-          ${escapeHTML(
-            h12SMC
-          )}
-        </span>
+        <span>${escapeHTML(h12)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Previous 12H</b>
-        <span>
-          ${escapeHTML(
-            previous12H
-          )}
-        </span>
+        <span>${escapeHTML(previous12H)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Current 12H</b>
-        <span>
-          ${escapeHTML(
-            current12H
-          )}
-        </span>
+        <span>${escapeHTML(current12H)}</span>
       </div>
 
       <div class="analysis-row">
         <b>1H Bias</b>
-        <span>
-          ${escapeHTML(
-            h1SMC
-          )}
-        </span>
+        <span>${escapeHTML(h1)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Structure</b>
-        <span>
-          ${escapeHTML(
-            structure
-          )}
-        </span>
+        <span>${escapeHTML(structure)}</span>
       </div>
 
       <div class="analysis-row">
         <b>BOS</b>
-        <span>
-          ${escapeHTML(
-            bos
-          )}
-        </span>
+        <span>${escapeHTML(bos)}</span>
       </div>
 
       <div class="analysis-row">
         <b>CHoCH</b>
-        <span>
-          ${escapeHTML(
-            choch
-          )}
-        </span>
+        <span>${escapeHTML(choch)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Liquidity</b>
-        <span>
-          ${escapeHTML(
-            liquidity
-          )}
-        </span>
+        <span>${escapeHTML(liquidity)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Breakout</b>
-        <span>
-          ${breakout ? "YES" : "NO"}
-        </span>
+        <span>${breakout ? "YES" : "NO"}</span>
       </div>
 
       <div class="analysis-row">
         <b>Rejection</b>
-        <span>
-          ${rejection ? "YES" : "NO"}
-        </span>
+        <span>${rejection ? "YES" : "NO"}</span>
       </div>
 
       <div class="analysis-row">
         <b>Location</b>
-        <span>
-          ${escapeHTML(
-            location
-          )}
-        </span>
+        <span>${escapeHTML(location)}</span>
       </div>
 
       <div class="analysis-row">
         <b>Extended</b>
-        <span>
-          ${extended ? "YES" : "NO"}
-        </span>
+        <span>${extended ? "YES" : "NO"}</span>
       </div>
 
     </div>
 
   `;
-
 }
 
 
@@ -1264,12 +1039,10 @@ function pairCard(x){
       ? `${scoreNumber}/5`
       : "0/5";
 
-
   const timeframes =
     x.timeframes ||
     x.tf ||
     {};
-
 
   const message =
     x.message ||
@@ -1285,9 +1058,6 @@ function pairCard(x){
             : "Waiting for confirmation..."
     );
 
-
-  let tradeHTML = "";
-
   const entry =
     x.entry ??
     x.entryPrice;
@@ -1300,6 +1070,11 @@ function pairCard(x){
     x.takeProfit ??
     x.tp;
 
+  const currentPrice =
+    x.price ??
+    x.currentPrice;
+
+  let tradeHTML = "";
 
   if(
     entry !== null &&
@@ -1311,58 +1086,29 @@ function pairCard(x){
       <div class="trade">
 
         <div>
-
           Entry
-
-          <b>
-            ${formatPrice(entry)}
-          </b>
-
+          <b>${formatPrice(entry)}</b>
         </div>
 
-
         <div>
-
           Stop Loss
-
-          <b>
-            ${formatPrice(stopLoss)}
-          </b>
-
+          <b>${formatPrice(stopLoss)}</b>
         </div>
 
-
         <div>
-
           Take Profit
-
-          <b>
-            ${formatPrice(takeProfit)}
-          </b>
-
+          <b>${formatPrice(takeProfit)}</b>
         </div>
 
       </div>
 
     `;
-
   }
-
-
-  const analysis =
-    getAnalysis(x);
-
 
   const marketStatus =
     x.marketStatus ||
     x.market ||
     "";
-
-
-  const currentPrice =
-    x.price ??
-    x.currentPrice;
-
 
   return `
 
@@ -1373,15 +1119,12 @@ function pairCard(x){
         <div>
 
           <div class="pair">
-
             ${escapeHTML(
               x.symbol ||
               x.pair ||
               "UNKNOWN"
             )}
-
           </div>
-
 
           <div class="sig ${signalClass}">
 
@@ -1405,18 +1148,15 @@ function pairCard(x){
 
         </div>
 
-
         <span
-          class="dot ${dotClass}"
-        ></span>
+          class="dot ${dotClass}">
+        </span>
 
       </div>
 
 
       <div class="details">
-
         ${escapeHTML(message)}
-
       </div>
 
 
@@ -1426,17 +1166,13 @@ function pairCard(x){
             <div class="meta">
               Market:
               <b>
-                ${escapeHTML(
-                  marketStatus
-                )}
+                ${escapeHTML(marketStatus)}
               </b>
             </div>
           `
           : ""
       }
 
-
-      <!-- TIMEFRAMES -->
 
       <div class="timeframes">
 
@@ -1467,14 +1203,9 @@ function pairCard(x){
       ${tradeHTML}
 
 
-      <!-- SMC ANALYSIS -->
-
       ${
         status !== "OFFLINE"
-          ? analysisHTML(
-              x,
-              status
-            )
+          ? analysisHTML(x)
           : ""
       }
 
@@ -1498,12 +1229,11 @@ function pairCard(x){
     </div>
 
   `;
-
 }
 
 
 /* =========================================================
-   LOAD DASHBOARD
+   DASHBOARD
 ========================================================= */
 
 async function loadDashboard(){
@@ -1518,7 +1248,6 @@ async function loadDashboard(){
         }
       );
 
-
     if(!response.ok){
 
       throw new Error(
@@ -1527,28 +1256,22 @@ async function loadDashboard(){
 
     }
 
-
     const data =
       await response.json();
 
 
     /* SYSTEM */
 
-    const system =
-      document.getElementById(
-        "system"
-      );
-
-
     const online =
       data.online !== false;
 
+    const system =
+      document.getElementById("system");
 
     system.textContent =
       online
         ? "Online"
         : "Offline";
-
 
     system.className =
       online
@@ -1570,7 +1293,6 @@ async function loadDashboard(){
       Object.values(
         data.pairs || {}
       );
-
 
     document.getElementById(
       "pairCount"
@@ -1595,33 +1317,24 @@ async function loadDashboard(){
     document.getElementById(
       "s"
     ).textContent =
-
       "Last scan: " +
-
       (
         data.lastScan
-          ? formatTime(
-              data.lastScan
-            )
+          ? formatTime(data.lastScan)
           : "Starting..."
       ) +
-
       " • Entry TF: " +
-
       (
         data.timeframe ||
         "5min"
       ) +
-
       " • Confirmation: 12H + 1H + 5M";
 
 
-    /* PAIR GRID */
+    /* GRID */
 
     const grid =
-      document.getElementById(
-        "g"
-      );
+      document.getElementById("g");
 
 
     if(!pairs.length){
@@ -1635,7 +1348,7 @@ async function loadDashboard(){
           </div>
 
           <div class="details">
-            No pair data available yet.
+            Waiting for market data...
           </div>
 
         </div>
@@ -1655,51 +1368,39 @@ async function loadDashboard(){
     /* PERFORMANCE */
 
     const performance =
-      data.performance ||
-      {};
+      data.performance || {};
 
 
     document.getElementById(
       "totalSignals"
     ).textContent =
-      performance.totalSignals ||
-      0;
-
+      performance.totalSignals || 0;
 
     document.getElementById(
       "buys"
     ).textContent =
-      performance.buys ||
-      0;
-
+      performance.buys || 0;
 
     document.getElementById(
       "sells"
     ).textContent =
-      performance.sells ||
-      0;
-
+      performance.sells || 0;
 
     document.getElementById(
       "wins"
     ).textContent =
-      performance.wins ||
-      0;
-
+      performance.wins || 0;
 
     document.getElementById(
       "losses"
     ).textContent =
-      performance.losses ||
-      0;
+      performance.losses || 0;
 
 
-    /* API */
+    /* API STATUS */
 
     const api =
-      data.api ||
-      {};
-
+      data.api || {};
 
     let apiText =
       `Status: ${
@@ -1707,10 +1408,8 @@ async function loadDashboard(){
         "UNKNOWN"
       }`;
 
-
     if(
-      api.totalRequests !==
-      undefined
+      api.totalRequests !== undefined
     ){
 
       apiText +=
@@ -1720,10 +1419,8 @@ async function loadDashboard(){
 
     }
 
-
     if(
-      api.requestsThisScan !==
-      undefined
+      api.requestsThisScan !== undefined
     ){
 
       apiText +=
@@ -1733,7 +1430,6 @@ async function loadDashboard(){
 
     }
 
-
     if(api.lastError){
 
       apiText +=
@@ -1742,7 +1438,6 @@ async function loadDashboard(){
         }`;
 
     }
-
 
     if(api.cooldownUntil){
 
@@ -1754,7 +1449,6 @@ async function loadDashboard(){
         }`;
 
     }
-
 
     document.getElementById(
       "apiStatus"
@@ -1775,43 +1469,36 @@ async function loadDashboard(){
       error
     );
 
-
     document.getElementById(
       "system"
     ).textContent =
       "Offline";
-
 
     document.getElementById(
       "system"
     ).className =
       "value red";
 
-
     document.getElementById(
       "onlineText"
     ).textContent =
       "● System Offline";
-
 
     document.getElementById(
       "lastScan"
     ).textContent =
       "Unavailable";
 
-
     document.getElementById(
       "s"
     ).textContent =
       "Unable to connect to trading engine.";
-
 
     document.getElementById(
       "apiStatus"
     ).textContent =
       "Dashboard connection error: " +
       error.message;
-
 
     document.getElementById(
       "g"
@@ -1824,10 +1511,8 @@ async function loadDashboard(){
         </div>
 
         <div class="details">
-
           Unable to connect to
           /api/status.
-
         </div>
 
       </div>
@@ -1849,13 +1534,10 @@ const alertToggle =
   );
 
 
-function updateAlertButton(
-  enabled
-){
+function updateAlertButton(enabled){
 
   currentAlertState =
     Boolean(enabled);
-
 
   if(currentAlertState){
 
@@ -1874,12 +1556,11 @@ function updateAlertButton(
       "alert-button alert-off";
 
   }
-
 }
 
 
 /* =========================================================
-   LOAD ALERT STATUS
+   ALERT STATUS
 ========================================================= */
 
 async function loadAlertStatus(){
@@ -1894,7 +1575,6 @@ async function loadAlertStatus(){
         }
       );
 
-
     if(!response.ok){
 
       throw new Error(
@@ -1903,17 +1583,14 @@ async function loadAlertStatus(){
 
     }
 
-
     const data =
       await response.json();
-
 
     updateAlertButton(
       data.alerts ??
       data.alertEnabled ??
       true
     );
-
 
   }catch(error){
 
@@ -1929,12 +1606,11 @@ async function loadAlertStatus(){
       "alert-button alert-off";
 
   }
-
 }
 
 
 /* =========================================================
-   TOGGLE TELEGRAM ALERTS
+   TOGGLE ALERTS
 ========================================================= */
 
 alertToggle.addEventListener(
@@ -1944,12 +1620,10 @@ alertToggle.addEventListener(
     alertToggle.disabled =
       true;
 
-
     try{
 
       const newState =
         !currentAlertState;
-
 
       const response =
         await fetch(
@@ -1970,7 +1644,6 @@ alertToggle.addEventListener(
           }
         );
 
-
       if(!response.ok){
 
         throw new Error(
@@ -1979,10 +1652,8 @@ alertToggle.addEventListener(
 
       }
 
-
       const result =
         await response.json();
-
 
       if(
         result.ok !== false
@@ -2002,7 +1673,6 @@ alertToggle.addEventListener(
 
       }
 
-
     }catch(error){
 
       console.error(
@@ -2014,7 +1684,6 @@ alertToggle.addEventListener(
         "ERROR";
 
     }
-
 
     alertToggle.disabled =
       false;
@@ -2033,18 +1702,17 @@ loadAlertStatus();
 
 
 /*
-  Dashboard refresh every 15 seconds.
+  Dashboard only refreshes the
+  frontend every 15 seconds.
+  This does NOT make Twelve Data
+  requests. The backend controls
+  the actual market-data polling.
 */
 
 setInterval(
   loadDashboard,
   15000
 );
-
-
-/*
-  Alert state refresh every 15 seconds.
-*/
 
 setInterval(
   loadAlertStatus,
