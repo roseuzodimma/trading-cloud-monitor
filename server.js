@@ -12,30 +12,50 @@ const API_KEY = process.env.TWELVE_DATA_API_KEY;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-const TIMEFRAME = process.env.TIMEFRAME || "5min";
+/*
+=========================================================
+FREE PLAN CONFIGURATION
+=========================================================
+*/
 
-// Minimum 5 minutes
 const POLL_MS = Math.max(
   300000,
   Number(process.env.POLL_MS || 300000)
 );
 
+/*
+  Start with only 3 instruments.
+
+  You can add the others later when the API is stable.
+*/
 const PAIRS = [
-  "EUR/USD",
-  "GBP/USD",
-  "USD/CAD",
   "XAU/USD",
-  "USD/CHF",
-  "EUR/GBP",
-  "GBP/CHF"
+  "EUR/USD",
+  "GBP/USD"
 ];
+
+/*
+  API cooldown after HTTP 429.
+
+  The bot will NOT continue hammering Twelve Data.
+*/
+const RATE_LIMIT_COOLDOWN_MS = 15 * 60 * 1000;
+
+/*
+  Small delay between successful requests.
+*/
+const REQUEST_DELAY_MS = 2500;
 
 let alertsEnabled = true;
 
+let apiCooldownUntil = 0;
+
 const state = {
   online: true,
+
   lastScan: null,
-  timeframe: TIMEFRAME,
+
+  timeframe: "5min",
 
   pairs: {},
 
@@ -48,17 +68,25 @@ const state = {
   },
 
   api: {
-    status: API_KEY ? "CONFIGURED" : "MISSING_API_KEY",
+    status: API_KEY
+      ? "CONFIGURED"
+      : "MISSING_API_KEY",
+
     totalRequests: 0,
+
     requestsThisScan: 0,
+
     lastError: null,
+
     cooldownUntil: null
   }
 };
 
-/* =========================================================
-   INITIAL PAIR STATE
-========================================================= */
+/*
+=========================================================
+INITIAL PAIR STATE
+=========================================================
+*/
 
 for (const pair of PAIRS) {
   state.pairs[pair] = {
@@ -121,14 +149,18 @@ for (const pair of PAIRS) {
 
       choch: "—",
 
-      liquidity: "—"
+      liquidity: "—",
+
+      confirmation: "WAITING"
     }
   };
 }
 
-/* =========================================================
-   MARKET HOURS
-========================================================= */
+/*
+=========================================================
+MARKET HOURS
+=========================================================
+*/
 
 function isMarketOpen() {
   const now = new Date();
@@ -142,12 +174,18 @@ function isMarketOpen() {
   const minutes =
     hour * 60 + minute;
 
-  // Saturday
+  /*
+    Saturday
+  */
+
   if (day === 6) {
     return false;
   }
 
-  // Sunday before 22:00 UTC
+  /*
+    Sunday before 22:00 UTC
+  */
+
   if (
     day === 0 &&
     minutes < 22 * 60
@@ -155,7 +193,10 @@ function isMarketOpen() {
     return false;
   }
 
-  // Friday after 22:00 UTC
+  /*
+    Friday after 22:00 UTC
+  */
+
   if (
     day === 5 &&
     minutes >= 22 * 60
@@ -166,9 +207,11 @@ function isMarketOpen() {
   return true;
 }
 
-/* =========================================================
-   HELPERS
-========================================================= */
+/*
+=========================================================
+HELPERS
+=========================================================
+*/
 
 function sleep(ms) {
   return new Promise(resolve =>
@@ -220,9 +263,39 @@ function roundPrice(value, pair) {
   );
 }
 
-/* =========================================================
-   TWELVE DATA API
-========================================================= */
+/*
+=========================================================
+API COOLDOWN
+=========================================================
+*/
+
+function isApiCoolingDown() {
+  return Date.now() < apiCooldownUntil;
+}
+
+function startApiCooldown() {
+  apiCooldownUntil =
+    Date.now() +
+    RATE_LIMIT_COOLDOWN_MS;
+
+  state.api.cooldownUntil =
+    new Date(
+      apiCooldownUntil
+    ).toISOString();
+
+  state.api.status =
+    "RATE_LIMIT_COOLDOWN";
+
+  console.log(
+    `[API] Rate-limit cooldown until ${state.api.cooldownUntil}`
+  );
+}
+
+/*
+=========================================================
+TWELVE DATA
+=========================================================
+*/
 
 async function twelveData(
   symbol,
@@ -232,6 +305,19 @@ async function twelveData(
   if (!API_KEY) {
     throw new Error(
       "TWELVE_DATA_API_KEY is missing"
+    );
+  }
+
+  if (isApiCoolingDown()) {
+    const remaining =
+      Math.ceil(
+        (apiCooldownUntil -
+          Date.now()) /
+          1000
+      );
+
+    throw new Error(
+      `Twelve Data cooldown active (${remaining}s remaining)`
     );
   }
 
@@ -247,8 +333,26 @@ async function twelveData(
   const response =
     await fetch(url);
 
-  const data =
-    await response.json().catch(() => null);
+  let data = null;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    data = null;
+  }
+
+  /*
+    HTTP 429
+  */
+
+  if (response.status === 429) {
+    startApiCooldown();
+
+    throw new Error(
+      "Twelve Data HTTP 429 - rate limit exceeded"
+    );
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -256,14 +360,28 @@ async function twelveData(
     );
   }
 
+  /*
+    Twelve Data can sometimes return
+    an error inside a HTTP 200 response.
+  */
+
   if (
     data &&
     data.status === "error"
   ) {
-    throw new Error(
+    const message =
       data.message ||
-      "Twelve Data error"
-    );
+      "Twelve Data error";
+
+    if (
+      /rate|limit|credit|quota/i.test(
+        message
+      )
+    ) {
+      startApiCooldown();
+    }
+
+    throw new Error(message);
   }
 
   if (
@@ -275,10 +393,18 @@ async function twelveData(
     );
   }
 
+  state.api.status =
+    "CONNECTED";
+
+  state.api.lastError =
+    null;
+
   return data.values
     .map(candle => ({
       datetime:
-        new Date(candle.datetime),
+        new Date(
+          candle.datetime
+        ),
 
       open:
         num(candle.open),
@@ -297,10 +423,18 @@ async function twelveData(
     }))
 
     .filter(candle =>
-      Number.isFinite(candle.open) &&
-      Number.isFinite(candle.high) &&
-      Number.isFinite(candle.low) &&
-      Number.isFinite(candle.close)
+      Number.isFinite(
+        candle.open
+      ) &&
+      Number.isFinite(
+        candle.high
+      ) &&
+      Number.isFinite(
+        candle.low
+      ) &&
+      Number.isFinite(
+        candle.close
+      )
     )
 
     .sort(
@@ -310,20 +444,11 @@ async function twelveData(
     );
 }
 
-/* =========================================================
-   BUILD 12H CANDLES FROM 1H DATA
+/*
 =========================================================
-
-   Twelve Data does NOT support "12h".
-
-   Therefore:
-
-   1H candles are downloaded.
-   The server combines them into 12H candles.
-
-   00:00 - 11:00 UTC = one 12H candle
-   12:00 - 23:00 UTC = one 12H candle
-========================================================= */
+12H AGGREGATION
+=========================================================
+*/
 
 function aggregate12HCandles(
   hourlyCandles
@@ -337,7 +462,9 @@ function aggregate12HCandles(
 
   const groups = new Map();
 
-  for (const candle of hourlyCandles) {
+  for (
+    const candle of hourlyCandles
+  ) {
     const date =
       candle.datetime;
 
@@ -354,13 +481,18 @@ function aggregate12HCandles(
       date.getUTCHours();
 
     const half =
-      hour < 12 ? 0 : 12;
+      hour < 12
+        ? 0
+        : 12;
 
     const key =
       `${year}-${month}-${day}-${half}`;
 
     if (!groups.has(key)) {
-      groups.set(key, []);
+      groups.set(
+        key,
+        []
+      );
     }
 
     groups
@@ -370,14 +502,23 @@ function aggregate12HCandles(
 
   const result = [];
 
-  for (const candles of groups.values()) {
+  for (
+    const candles of
+      groups.values()
+  ) {
     candles.sort(
       (a, b) =>
         a.datetime.getTime() -
         b.datetime.getTime()
     );
 
-    if (candles.length < 12) {
+    /*
+      Only complete 12H candles.
+    */
+
+    if (
+      candles.length < 12
+    ) {
       continue;
     }
 
@@ -385,7 +526,9 @@ function aggregate12HCandles(
       candles[0];
 
     const last =
-      candles[candles.length - 1];
+      candles[
+        candles.length - 1
+      ];
 
     result.push({
       datetime:
@@ -428,9 +571,11 @@ function aggregate12HCandles(
   );
 }
 
-/* =========================================================
-   RSI
-========================================================= */
+/*
+=========================================================
+RSI
+=========================================================
+*/
 
 function calculateRSI(
   candles,
@@ -481,10 +626,16 @@ function calculateRSI(
       candles[i - 1].close;
 
     const gain =
-      Math.max(change, 0);
+      Math.max(
+        change,
+        0
+      );
 
     const loss =
-      Math.max(-change, 0);
+      Math.max(
+        -change,
+        0
+      );
 
     avgGain =
       (
@@ -506,19 +657,25 @@ function calculateRSI(
   }
 
   const rs =
-    avgGain / avgLoss;
+    avgGain /
+    avgLoss;
 
   return (
     100 -
-    100 / (1 + rs)
+    100 /
+      (1 + rs)
   );
 }
 
-/* =========================================================
-   TREND
-========================================================= */
+/*
+=========================================================
+TREND
+=========================================================
+*/
 
-function getTrend(candles) {
+function getTrend(
+  candles
+) {
   if (
     !candles ||
     candles.length < 20
@@ -533,7 +690,9 @@ function getTrend(candles) {
     average(
       recent
         .slice(-5)
-        .map(c => c.close)
+        .map(
+          c => c.close
+        )
     );
 
   const slow =
@@ -568,9 +727,11 @@ function getTrend(candles) {
   return "NEUTRAL";
 }
 
-/* =========================================================
-   SWING HIGH
-========================================================= */
+/*
+=========================================================
+SWINGS
+=========================================================
+*/
 
 function findSwingHigh(
   candles,
@@ -596,10 +757,6 @@ function findSwingHigh(
   );
 }
 
-/* =========================================================
-   SWING LOW
-========================================================= */
-
 function findSwingLow(
   candles,
   index
@@ -624,9 +781,11 @@ function findSwingLow(
   );
 }
 
-/* =========================================================
-   SMC STRUCTURE
-========================================================= */
+/*
+=========================================================
+SMC STRUCTURE
+=========================================================
+*/
 
 function getStructure(
   candles
@@ -703,7 +862,8 @@ function getStructure(
 
   if (
     previousHigh !== null &&
-    last.close > previousHigh
+    last.close >
+      previousHigh
   ) {
     structure =
       "BULLISH";
@@ -714,7 +874,8 @@ function getStructure(
 
   if (
     previousLow !== null &&
-    last.close < previousLow
+    last.close <
+      previousLow
   ) {
     structure =
       "BEARISH";
@@ -782,9 +943,11 @@ function getStructure(
   };
 }
 
-/* =========================================================
-   REJECTION
-========================================================= */
+/*
+=========================================================
+REJECTION
+=========================================================
+*/
 
 function rejectionSignal(
   candle
@@ -816,6 +979,13 @@ function rejectionSignal(
     ) -
     candle.low;
 
+  /*
+    Better rejection rule.
+
+    A wick must be significantly larger
+    than the candle body.
+  */
+
   const minimum =
     Math.max(
       body * 1.5,
@@ -824,20 +994,24 @@ function rejectionSignal(
 
   return {
     bullish:
-      lowerWick > minimum &&
+      lowerWick >
+        minimum &&
       candle.close >
         candle.open,
 
     bearish:
-      upperWick > minimum &&
+      upperWick >
+        minimum &&
       candle.close <
         candle.open
   };
 }
 
-/* =========================================================
-   BREAKOUT
-========================================================= */
+/*
+=========================================================
+BREAKOUT
+=========================================================
+*/
 
 function breakoutSignal(
   candles
@@ -858,7 +1032,10 @@ function breakoutSignal(
     ];
 
   const previous =
-    candles.slice(-6, -1);
+    candles.slice(
+      -6,
+      -1
+    );
 
   const highest =
     Math.max(
@@ -885,9 +1062,11 @@ function breakoutSignal(
   };
 }
 
-/* =========================================================
-   ATR
-========================================================= */
+/*
+=========================================================
+ATR
+=========================================================
+*/
 
 function calculateATR(
   candles,
@@ -938,9 +1117,11 @@ function calculateATR(
   );
 }
 
-/* =========================================================
-   12H ANALYSIS
-========================================================= */
+/*
+=========================================================
+12H ANALYSIS
+=========================================================
+*/
 
 function get12HAnalysis(
   candles
@@ -951,76 +1132,91 @@ function get12HAnalysis(
   ) {
     return {
       previousTrend: "UNKNOWN",
+
       currentTrend: "UNKNOWN",
+
       previousRSI: null,
+
       currentRSI: null,
+
       bias: "UNKNOWN",
+
       previousCandle: null,
+
       currentCandle: null
     };
   }
+
+  /*
+    Ignore the currently forming
+    12H candle when determining
+    the primary bias.
+  */
+
+  const completed =
+    candles.slice(
+      0,
+      candles.length - 1
+    );
+
+  const previous =
+    completed[
+      completed.length - 1
+    ];
 
   const current =
     candles[
       candles.length - 1
     ];
 
-  const previous =
-    candles[
-      candles.length - 2
-    ];
-
-  /*
-    Previous completed 12H candles.
-  */
-
-  const previousClosed =
-    candles.slice(
-      0,
-      candles.length - 1
-    );
-
   const previousTrend =
-    getTrend(
-      previousClosed
-    );
+    getTrend(completed);
 
   const currentTrend =
     getTrend(candles);
 
   const previousRSI =
     calculateRSI(
-      previousClosed
+      completed
     );
 
   const currentRSI =
-    calculateRSI(candles);
+    calculateRSI(
+      candles
+    );
 
   let bias =
     previousTrend;
 
   /*
-    Stable 12H bias.
+    Completed candle direction
+    helps stabilize the bias.
   */
 
   if (
     previous.close >
-      previous.open &&
-    previousTrend !==
-      "BEARISH"
+      previous.open
   ) {
-    bias =
-      "BULLISH";
+    if (
+      previousTrend !==
+      "BEARISH"
+    ) {
+      bias =
+        "BULLISH";
+    }
   }
 
   if (
     previous.close <
-      previous.open &&
-    previousTrend !==
-      "BULLISH"
+      previous.open
   ) {
-    bias =
-      "BEARISH";
+    if (
+      previousTrend !==
+      "BULLISH"
+    ) {
+      bias =
+        "BEARISH";
+    }
   }
 
   return {
@@ -1052,9 +1248,11 @@ function get12HAnalysis(
   };
 }
 
-/* =========================================================
-   ANALYZE PAIR
-========================================================= */
+/*
+=========================================================
+ANALYZE PAIR
+=========================================================
+*/
 
 function analyzePair(
   pair,
@@ -1118,9 +1316,11 @@ function analyzePair(
 
   let sellScore = 0;
 
-  /* =====================================================
-     12H BIAS
-  ===================================================== */
+  /*
+  ========================================================
+  12H
+  ========================================================
+  */
 
   if (
     h12Analysis.bias ===
@@ -1136,41 +1336,57 @@ function analyzePair(
     sellScore++;
   }
 
-  /* =====================================================
-     1H TREND
-  ===================================================== */
+  /*
+  ========================================================
+  1H
+  ========================================================
+  */
 
   if (
-    h1Trend === "BULLISH"
+    h1Trend ===
+    "BULLISH"
   ) {
     buyScore++;
   }
 
   if (
-    h1Trend === "BEARISH"
+    h1Trend ===
+    "BEARISH"
   ) {
     sellScore++;
   }
 
-  /* =====================================================
-     5M TREND
-  ===================================================== */
+  /*
+  ========================================================
+  5M
+  ========================================================
+
+  IMPORTANT:
+
+  5M direction is now REQUIRED.
+
+  5M NEUTRAL cannot produce a trade.
+  */
 
   if (
-    m5Trend === "BULLISH"
+    m5Trend ===
+    "BULLISH"
   ) {
     buyScore++;
   }
 
   if (
-    m5Trend === "BEARISH"
+    m5Trend ===
+    "BEARISH"
   ) {
     sellScore++;
   }
 
-  /* =====================================================
-     RSI
-  ===================================================== */
+  /*
+  ========================================================
+  RSI
+  ========================================================
+  */
 
   if (
     m5RSI !== null &&
@@ -1183,14 +1399,16 @@ function analyzePair(
   if (
     m5RSI !== null &&
     m5RSI >= 30 &&
-    m5RSI <= 50
+    m5RSI < 50
   ) {
     sellScore++;
   }
 
-  /* =====================================================
-     SMC CONFIRMATION
-  ===================================================== */
+  /*
+  ========================================================
+  SMC
+  ========================================================
+  */
 
   const bullishSMC =
     m5Structure.bos ===
@@ -1223,12 +1441,25 @@ function analyzePair(
   }
 
   buyScore =
-    Math.min(5, buyScore);
+    Math.min(
+      5,
+      buyScore
+    );
 
   sellScore =
-    Math.min(5, sellScore);
+    Math.min(
+      5,
+      sellScore
+    );
 
-  let status = "WAIT";
+  /*
+  ========================================================
+  DEFAULT
+  ========================================================
+  */
+
+  let status =
+    "WAIT";
 
   let score =
     Math.max(
@@ -1236,46 +1467,175 @@ function analyzePair(
       sellScore
     );
 
-  /* =====================================================
-     STRONG BUY
-  ===================================================== */
+  let confirmation =
+    "WAITING";
 
-  if (
-    buyScore >= 4 &&
+  /*
+  ========================================================
+  STRICT BUY CONFIRMATION
+  ========================================================
+  */
+
+  const bullishMTF =
     h12Analysis.bias ===
       "BULLISH" &&
     h1Trend ===
-      "BULLISH"
-  ) {
-    status =
-      "BUY";
-  }
+      "BULLISH" &&
+    m5Trend ===
+      "BULLISH";
 
-  /* =====================================================
-     STRONG SELL
-  ===================================================== */
+  /*
+  ========================================================
+  STRICT SELL CONFIRMATION
+  ========================================================
+  */
 
-  if (
-    sellScore >= 4 &&
+  const bearishMTF =
     h12Analysis.bias ===
       "BEARISH" &&
     h1Trend ===
-      "BEARISH"
+      "BEARISH" &&
+    m5Trend ===
+      "BEARISH";
+
+  /*
+  ========================================================
+  SMC CONFIRMATION
+  ========================================================
+  */
+
+  const bullishStructure =
+    m5Structure.bos ===
+      "BULLISH" ||
+
+    m5Structure.choch ===
+      "BULLISH" ||
+
+    breakout.bullish ||
+
+    rejection.bullish;
+
+  const bearishStructure =
+    m5Structure.bos ===
+      "BEARISH" ||
+
+    m5Structure.choch ===
+      "BEARISH" ||
+
+    breakout.bearish ||
+
+    rejection.bearish;
+
+  /*
+  ========================================================
+  BUY
+  ========================================================
+  */
+
+  if (
+    bullishMTF &&
+    bullishStructure &&
+    buyScore >= 4
+  ) {
+    status =
+      "BUY";
+
+    confirmation =
+      "CONFIRMED";
+  }
+
+  /*
+  ========================================================
+  SELL
+  ========================================================
+  */
+
+  if (
+    bearishMTF &&
+    bearishStructure &&
+    sellScore >= 4
   ) {
     status =
       "SELL";
+
+    confirmation =
+      "CONFIRMED";
   }
 
-  /* =====================================================
-     EXTENSION PROTECTION
-  ===================================================== */
+  /*
+  ========================================================
+  EXPLICIT 5M NEUTRAL PROTECTION
+  ========================================================
+  */
+
+  if (
+    m5Trend ===
+    "NEUTRAL"
+  ) {
+    status =
+      "WAIT";
+
+    confirmation =
+      "5M NEUTRAL — WAITING";
+
+    score =
+      Math.max(
+        buyScore,
+        sellScore
+      );
+  }
+
+  /*
+  ========================================================
+  5M OPPOSITE DIRECTION PROTECTION
+  ========================================================
+  */
+
+  if (
+    h12Analysis.bias ===
+      "BEARISH" &&
+    h1Trend ===
+      "BEARISH" &&
+    m5Trend ===
+      "BULLISH"
+  ) {
+    status =
+      "WAIT";
+
+    confirmation =
+      "5M BULLISH AGAINST HTF";
+  }
+
+  if (
+    h12Analysis.bias ===
+      "BULLISH" &&
+    h1Trend ===
+      "BULLISH" &&
+    m5Trend ===
+      "BEARISH"
+  ) {
+    status =
+      "WAIT";
+
+    confirmation =
+      "5M BEARISH AGAINST HTF";
+  }
+
+  /*
+  ========================================================
+  ATR
+  ========================================================
+  */
 
   const atr =
     calculateATR(m5);
 
-  let extended = false;
+  let extended =
+    false;
 
-  if (atr !== null) {
+  if (
+    atr !== null
+  ) {
     const reference =
       m5[
         Math.max(
@@ -1290,29 +1650,43 @@ function analyzePair(
           reference.open
       );
 
+    /*
+      Prevent chasing a move.
+    */
+
     if (
       distance >
       atr * 2.5
     ) {
-      extended = true;
+      extended =
+        true;
 
       status =
         "WAIT";
+
+      confirmation =
+        "MOVE EXTENDED — WAIT FOR PULLBACK";
     }
   }
 
-  /* =====================================================
-     ENTRY / STOP / TARGET
-  ===================================================== */
+  /*
+  ========================================================
+  ENTRY / SL / TP
+  ========================================================
+  */
 
-  let entry = null;
+  let entry =
+    null;
 
-  let stopLoss = null;
+  let stopLoss =
+    null;
 
-  let takeProfit = null;
+  let takeProfit =
+    null;
 
   if (
-    status === "BUY" &&
+    status ===
+      "BUY" &&
     atr !== null
   ) {
     entry =
@@ -1329,7 +1703,9 @@ function analyzePair(
       entry -
       stopLoss;
 
-    if (risk > 0) {
+    if (
+      risk > 0
+    ) {
       takeProfit =
         entry +
         risk * 2;
@@ -1337,7 +1713,8 @@ function analyzePair(
   }
 
   if (
-    status === "SELL" &&
+    status ===
+      "SELL" &&
     atr !== null
   ) {
     entry =
@@ -1354,18 +1731,27 @@ function analyzePair(
       stopLoss -
       entry;
 
-    if (risk > 0) {
+    if (
+      risk > 0
+    ) {
       takeProfit =
         entry -
         risk * 2;
     }
   }
 
+  /*
+  ========================================================
+  LOCATION
+  ========================================================
+  */
+
   let location =
     "NEUTRAL";
 
   if (
-    status === "BUY"
+    status ===
+    "BUY"
   ) {
     if (
       rejection.bullish
@@ -1384,7 +1770,8 @@ function analyzePair(
   }
 
   if (
-    status === "SELL"
+    status ===
+    "SELL"
   ) {
     if (
       rejection.bearish
@@ -1402,6 +1789,12 @@ function analyzePair(
     }
   }
 
+  /*
+  ========================================================
+  MESSAGE
+  ========================================================
+  */
+
   let message =
     `12H ${h12Analysis.bias} | ` +
     `1H ${h1Trend} | ` +
@@ -1412,24 +1805,21 @@ function analyzePair(
         : "—"
     }`;
 
-  if (
-    status === "BUY"
-  ) {
-    message +=
-      " | Bullish confirmation";
-  }
+  message +=
+    ` | ${confirmation}`;
 
   if (
-    status === "SELL"
+    extended
   ) {
-    message +=
-      " | Bearish confirmation";
-  }
-
-  if (extended) {
     message =
       "Move extended — waiting for pullback/confirmation";
   }
+
+  /*
+  ========================================================
+  RESULT
+  ========================================================
+  */
 
   return {
     symbol: pair,
@@ -1564,14 +1954,18 @@ function analyzePair(
         m5Structure.choch,
 
       liquidity:
-        m5Structure.liquidity
+        m5Structure.liquidity,
+
+      confirmation
     }
   };
 }
 
-/* =========================================================
-   TELEGRAM
-========================================================= */
+/*
+=========================================================
+TELEGRAM
+=========================================================
+*/
 
 async function sendTelegramSignal(
   signal
@@ -1591,8 +1985,21 @@ async function sendTelegramSignal(
     return;
   }
 
+  /*
+    Never send an incomplete signal.
+  */
+
+  if (
+    signal.entry === null ||
+    signal.stopLoss === null ||
+    signal.takeProfit === null
+  ) {
+    return;
+  }
+
   const emoji =
-    signal.status === "BUY"
+    signal.status ===
+      "BUY"
       ? "🟢"
       : "🔴";
 
@@ -1617,11 +2024,10 @@ RSI: ${signal.timeframes.m5.rsi ?? "—"}
 🔄 CHoCH: ${signal.analysis.choch}
 💧 Liquidity: ${signal.analysis.liquidity}
 
-⏱ Entry TF: 5M
-🔎 Confirmation: 12H + 1H + 5M
+✅ 12H + 1H + 5M CONFIRMED
 💰 Risk/Reward: 1:2
 
-⚠️ Signal confirmation required before entry.`;
+⚠️ Always confirm price action before entering.`;
 
   const url =
     `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -1648,13 +2054,17 @@ RSI: ${signal.timeframes.m5.rsi ?? "—"}
         }
       );
 
-    if (!response.ok) {
+    if (
+      !response.ok
+    ) {
       console.error(
         "Telegram HTTP error:",
         response.status
       );
     }
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       "Telegram error:",
       error.message
@@ -1662,9 +2072,11 @@ RSI: ${signal.timeframes.m5.rsi ?? "—"}
   }
 }
 
-/* =========================================================
-   MARKET CLOSED STATE
-========================================================= */
+/*
+=========================================================
+MARKET CLOSED
+=========================================================
+*/
 
 function setMarketClosed(
   pair
@@ -1675,18 +2087,23 @@ function setMarketClosed(
   result.status =
     "WAIT";
 
-  result.score = 0;
+  result.score =
+    0;
 
   result.message =
     "Market closed — monitoring will resume when the market opens.";
 
-  result.price = null;
+  result.price =
+    null;
 
-  result.entry = null;
+  result.entry =
+    null;
 
-  result.stopLoss = null;
+  result.stopLoss =
+    null;
 
-  result.takeProfit = null;
+  result.takeProfit =
+    null;
 
   result.updated =
     new Date().toISOString();
@@ -1755,13 +2172,120 @@ function setMarketClosed(
       "—",
 
     liquidity:
-      "—"
+      "—",
+
+    confirmation:
+      "MARKET CLOSED"
   };
 }
 
-/* =========================================================
-   SCAN ONE PAIR
-========================================================= */
+/*
+=========================================================
+OFFLINE STATE
+=========================================================
+*/
+
+function setOffline(
+  pair,
+  message
+) {
+  const result =
+    state.pairs[pair];
+
+  result.status =
+    "OFFLINE";
+
+  result.score =
+    0;
+
+  result.message =
+    message;
+
+  result.price =
+    null;
+
+  result.entry =
+    null;
+
+  result.stopLoss =
+    null;
+
+  result.takeProfit =
+    null;
+
+  result.updated =
+    new Date().toISOString();
+
+  result.timeframes = {
+    h12: {
+      trend:
+        "UNKNOWN",
+      rsi: null,
+      previous:
+        "UNKNOWN",
+      current:
+        "UNKNOWN",
+      previousCandle:
+        null
+    },
+
+    h1: {
+      trend:
+        "UNKNOWN",
+      rsi: null
+    },
+
+    m5: {
+      trend:
+        "UNKNOWN",
+      rsi: null
+    }
+  };
+
+  result.analysis = {
+    direction:
+      "WAIT",
+
+    h12SMC:
+      "UNKNOWN",
+
+    h1SMC:
+      "UNKNOWN",
+
+    breakout:
+      false,
+
+    rejection:
+      false,
+
+    location:
+      "—",
+
+    extended:
+      false,
+
+    structure:
+      "—",
+
+    bos:
+      "—",
+
+    choch:
+      "—",
+
+    liquidity:
+      "—",
+
+    confirmation:
+      "WAITING"
+  };
+}
+
+/*
+=========================================================
+SCAN ONE PAIR
+=========================================================
+*/
 
 async function scanPair(
   pair
@@ -1769,43 +2293,48 @@ async function scanPair(
   const result =
     state.pairs[pair];
 
-  result.updated =
-    new Date().toISOString();
-
-  /*
-    Never request data while market is closed.
-  */
-
-  if (!isMarketOpen()) {
+  if (
+    !isMarketOpen()
+  ) {
     setMarketClosed(pair);
+    return;
+  }
+
+  if (
+    isApiCoolingDown()
+  ) {
+    setOffline(
+      pair,
+      "Twelve Data rate-limit cooldown active"
+    );
+
     return;
   }
 
   try {
     /*
-      IMPORTANT:
+      ONE 1H request.
 
-      12H is NOT requested from Twelve Data.
-
-      We request:
-      1H
-      1H
-      5M
-
-      Then convert the 1H candles into 12H candles.
+      This data is used for BOTH:
+      - 1H analysis
+      - locally constructed 12H candles
     */
 
     const hourly =
       await twelveData(
         pair,
         "1h",
-        300
+        120
       );
 
     state.api.requestsThisScan++;
 
+    await sleep(
+      REQUEST_DELAY_MS
+    );
+
     /*
-      12H candles built locally.
+      Build 12H.
     */
 
     const h12 =
@@ -1814,21 +2343,32 @@ async function scanPair(
       );
 
     /*
-      1H confirmation.
+      1H.
     */
 
     const h1 =
-      hourly.slice(-150);
+      hourly.slice(-100);
 
     /*
-      5M entry.
+      5M.
     */
+
+    if (
+      isApiCoolingDown()
+    ) {
+      setOffline(
+        pair,
+        "Rate limit reached before 5M request"
+      );
+
+      return;
+    }
 
     const m5 =
       await twelveData(
         pair,
         "5min",
-        150
+        100
       );
 
     state.api.requestsThisScan++;
@@ -1837,7 +2377,7 @@ async function scanPair(
       h12.length < 20
     ) {
       throw new Error(
-        "Not enough 12H candles built from 1H data"
+        "Not enough completed 12H candles"
       );
     }
 
@@ -1869,16 +2409,20 @@ async function scanPair(
       result.status;
 
     /*
-      Telegram only when a NEW strong signal appears.
+      Telegram only for NEW signals.
     */
 
     if (
-      signal.status === "BUY" &&
-      oldStatus !== "BUY"
+      signal.status ===
+        "BUY" &&
+      oldStatus !==
+        "BUY"
     ) {
-      state.performance.totalSignals++;
+      state.performance
+        .totalSignals++;
 
-      state.performance.buys++;
+      state.performance
+        .buys++;
 
       await sendTelegramSignal(
         signal
@@ -1886,12 +2430,16 @@ async function scanPair(
     }
 
     if (
-      signal.status === "SELL" &&
-      oldStatus !== "SELL"
+      signal.status ===
+        "SELL" &&
+      oldStatus !==
+        "SELL"
     ) {
-      state.performance.totalSignals++;
+      state.performance
+        .totalSignals++;
 
-      state.performance.sells++;
+      state.performance
+        .sells++;
 
       await sendTelegramSignal(
         signal
@@ -1901,94 +2449,41 @@ async function scanPair(
     state.pairs[pair] =
       signal;
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
-      `[${pair}]`,
-      error.message
+      `[${pair}] ${error.message}`
     );
 
-    result.status =
-      "OFFLINE";
+    /*
+      If API is rate-limited,
+      don't continue attacking it.
+    */
 
-    result.score = 0;
+    if (
+      /429|rate limit|quota|credit/i.test(
+        error.message
+      )
+    ) {
+      startApiCooldown();
+    }
 
-    result.message =
-      error.message;
-
-    result.price = null;
-
-    result.entry = null;
-
-    result.stopLoss = null;
-
-    result.takeProfit = null;
-
-    result.updated =
-      new Date().toISOString();
-
-    result.timeframes = {
-      h12: {
-        trend: "UNKNOWN",
-        rsi: null,
-        previous: "UNKNOWN",
-        current: "UNKNOWN",
-        previousCandle: null
-      },
-
-      h1: {
-        trend: "UNKNOWN",
-        rsi: null
-      },
-
-      m5: {
-        trend: "UNKNOWN",
-        rsi: null
-      }
-    };
-
-    result.analysis = {
-      direction:
-        "WAIT",
-
-      h12SMC:
-        "UNKNOWN",
-
-      h1SMC:
-        "UNKNOWN",
-
-      breakout:
-        false,
-
-      rejection:
-        false,
-
-      location:
-        "—",
-
-      extended:
-        false,
-
-      structure:
-        "—",
-
-      bos:
-        "—",
-
-      choch:
-        "—",
-
-      liquidity:
-        "—"
-    };
+    setOffline(
+      pair,
+      error.message
+    );
 
     state.api.lastError =
       `${pair}: ${error.message}`;
   }
 }
 
-/* =========================================================
-   SCAN ALL PAIRS
-========================================================= */
+/*
+=========================================================
+SCAN ALL
+=========================================================
+*/
 
 async function scanAll() {
   state.api.requestsThisScan =
@@ -1997,10 +2492,33 @@ async function scanAll() {
   state.api.lastError =
     null;
 
+  if (
+    isApiCoolingDown()
+  ) {
+    console.log(
+      "[SCAN] API cooldown active — skipping scan"
+    );
+
+    state.lastScan =
+      new Date().toISOString();
+
+    for (
+      const pair of PAIRS
+    ) {
+      setOffline(
+        pair,
+        "Twelve Data rate-limit cooldown active"
+      );
+    }
+
+    return;
+  }
+
   const marketOpen =
     isMarketOpen();
 
-  state.online = true;
+  state.online =
+    true;
 
   console.log(
     `[SCAN] Market ${
@@ -2010,12 +2528,9 @@ async function scanAll() {
     }`
   );
 
-  /*
-    Market closed:
-    Do NOT use API requests.
-  */
-
-  if (!marketOpen) {
+  if (
+    !marketOpen
+  ) {
     for (
       const pair of PAIRS
     ) {
@@ -2029,16 +2544,27 @@ async function scanAll() {
   }
 
   /*
-    Scan pairs one at a time.
-    This reduces API pressure.
+    Sequential scanning.
   */
 
   for (
     const pair of PAIRS
   ) {
+    if (
+      isApiCoolingDown()
+    ) {
+      break;
+    }
+
     await scanPair(pair);
 
-    await sleep(700);
+    /*
+      Larger delay between pairs.
+    */
+
+    await sleep(
+      REQUEST_DELAY_MS
+    );
   }
 
   state.lastScan =
@@ -2049,9 +2575,11 @@ async function scanAll() {
   );
 }
 
-/* =========================================================
-   STATUS API
-========================================================= */
+/*
+=========================================================
+STATUS
+=========================================================
+*/
 
 app.get(
   "/api/status",
@@ -2085,15 +2613,21 @@ app.get(
       performance:
         state.performance,
 
-      api:
-        state.api
+      api: {
+        ...state.api,
+
+        cooldownActive:
+          isApiCoolingDown()
+      }
     });
   }
 );
 
-/* =========================================================
-   ALERTS
-========================================================= */
+/*
+=========================================================
+ALERTS
+=========================================================
+*/
 
 app.get(
   "/api/alerts",
@@ -2130,9 +2664,11 @@ app.post(
   }
 );
 
-/* =========================================================
-   HEALTH
-========================================================= */
+/*
+=========================================================
+HEALTH
+=========================================================
+*/
 
 app.get(
   "/health",
@@ -2148,15 +2684,23 @@ app.get(
           ? "OPEN"
           : "CLOSED",
 
+      apiConfigured:
+        Boolean(API_KEY),
+
+      apiCooldown:
+        isApiCoolingDown(),
+
       time:
         new Date().toISOString()
     });
   }
 );
 
-/* =========================================================
-   ROOT
-========================================================= */
+/*
+=========================================================
+ROOT
+=========================================================
+*/
 
 app.get(
   "/api",
@@ -2177,15 +2721,20 @@ app.get(
       smc:
         true,
 
+      confirmation:
+        "12H + 1H + 5M + SMC",
+
       message:
         "Trading signal engine running"
     });
   }
 );
 
-/* =========================================================
-   START SERVER
-========================================================= */
+/*
+=========================================================
+START SERVER
+=========================================================
+*/
 
 app.listen(
   PORT,
@@ -2219,7 +2768,11 @@ app.listen(
     );
 
     console.log(
-      "12H: BUILT FROM 1H CANDLES"
+      "Pairs: XAU/USD, EUR/USD, GBP/USD"
+    );
+
+    console.log(
+      "12H: BUILT FROM 1H"
     );
 
     console.log(
@@ -2232,6 +2785,18 @@ app.listen(
 
     console.log(
       "SMC: ENABLED"
+    );
+
+    console.log(
+      "5M NEUTRAL: NO TRADE"
+    );
+
+    console.log(
+      "12H + 1H + 5M: REQUIRED"
+    );
+
+    console.log(
+      "API RATE LIMIT PROTECTION: ENABLED"
     );
 
     console.log(
@@ -2254,7 +2819,9 @@ app.listen(
 
     try {
       await scanAll();
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         "Initial scan error:",
         error.message
@@ -2269,7 +2836,9 @@ app.listen(
       async () => {
         try {
           await scanAll();
-        } catch (error) {
+        } catch (
+          error
+        ) {
           console.error(
             "Scan loop error:",
             error.message
