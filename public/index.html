@@ -1,1228 +1,809 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>Trading Cloud Monitor</title>
-
-<style>
-*{box-sizing:border-box}
-
-body{
-  font-family:Arial,sans-serif;
-  margin:0;
-  padding:18px;
-  color:#eef4ff;
-  background:linear-gradient(135deg,#061226 0%,#0a1933 52%,#07101f 100%);
-  min-height:100vh;
-}
-
-.wrap{
-  max-width:1150px;
-  margin:auto;
-}
-
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:14px;
-  margin-bottom:18px;
-}
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-.logo{font-size:32px}
-
-h1{
-  font-size:25px;
-  margin:0;
-}
-
-.subtitle{
-  color:#8fa8c8;
-  font-size:13px;
-  margin-top:4px;
-}
-
-.online{
-  color:#19e68a;
-  font-weight:bold;
-  font-size:13px;
-  white-space:nowrap;
-}
-
-.refresh{
-  background:#102344;
-  color:#9bcaff;
-  border:1px solid #244777;
-  border-radius:10px;
-  padding:9px 12px;
-  font-size:18px;
-  cursor:pointer;
-}
-
-.summary{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:11px;
-  margin-bottom:18px;
-}
-
-.box,
-.section,
-.card,
-.action,
-.api-box{
-  background:rgba(13,28,50,.9);
-  border:1px solid #203b62;
-  border-radius:14px;
-  box-shadow:0 8px 30px rgba(0,0,0,.18);
-}
-
-.box{padding:15px}
-
-.label{
-  font-size:11px;
-  color:#8fa8c8;
-  text-transform:uppercase;
-  letter-spacing:.7px;
-}
-
-.value{
-  font-size:20px;
-  font-weight:bold;
-  margin-top:7px;
-}
-
-.green{color:#19e68a}
-.blue{color:#55a8ff}
-.orange{color:#ffb52e}
-.red{color:#ff5b65}
-
-.alert-button{
-  border:none;
-  padding:8px 20px;
-  border-radius:20px;
-  font-weight:bold;
-  cursor:pointer;
-  font-size:14px;
-  margin-top:7px;
-}
-
-.alert-on{
-  background:#16a34a;
-  color:white;
-}
-
-.alert-off{
-  background:#dc2626;
-  color:white;
-}
-
-.alert-button:disabled{
-  opacity:.6;
-  cursor:not-allowed;
-}
-
-.section{padding:16px}
-
-.section-title{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:12px;
-}
-
-.section-title h2{
-  margin:0;
-  font-size:19px;
-}
-
-.auto{
-  color:#19e68a;
-  font-size:12px;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
-  gap:11px;
-}
-
-.card{
-  padding:15px;
-  transition:.2s;
-}
-
-.card:hover{
-  transform:translateY(-2px);
-  border-color:#315d91;
-}
-
-.card-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-}
-
-.pair{
-  font-size:18px;
-  font-weight:bold;
-}
-
-.sig{
-  font-size:16px;
-  font-weight:bold;
-  margin:6px 0;
-}
-
-.wait{color:#ffbf2f}
-.buy{color:#19e68a}
-.sell{color:#ff5b65}
-.offline{color:#ff9f43}
-
-.meta{
-  font-size:12px;
-  color:#8098b8;
-  margin-top:8px;
-  line-height:1.5;
-}
-
-.details{
-  margin-top:11px;
-  color:#c7d7ee;
-  font-size:13px;
-  line-height:1.5;
-}
-
-.dot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  display:inline-block;
-  background:#ffbf2f;
-}
-
-.buy-dot{background:#19e68a}
-.sell-dot{background:#ff5b65}
-.offline-dot{background:#ff9f43}
-
-.timeframes{
-  margin-top:13px;
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:7px;
-}
-
-.tf{
-  background:#0a1b33;
-  border:1px solid #1d3658;
-  border-radius:9px;
-  padding:9px 5px;
-  text-align:center;
-}
-
-.tf-title{
-  color:#7894b7;
-  font-size:10px;
-  margin-bottom:5px;
-}
-
-.tf-value{
-  font-size:12px;
-  font-weight:bold;
-}
-
-.tf-rsi{
-  color:#8fa8c8;
-  font-size:10px;
-  margin-top:4px;
-}
-
-.trade{
-  margin-top:12px;
-  padding-top:10px;
-  border-top:1px solid #203b62;
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  font-size:12px;
-  color:#9eb5d2;
-}
-
-.trade b{
-  display:block;
-  color:#f2f7ff;
-  margin-top:4px;
-  font-size:13px;
-}
-
-.analysis{
-  margin-top:11px;
-  padding:11px;
-  border-radius:9px;
-  background:#091a30;
-  border:1px solid #1c3555;
-  font-size:11px;
-  line-height:1.8;
-  color:#9fb6d4;
-}
-
-.analysis-row{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  border-bottom:1px solid rgba(32,59,98,.5);
-}
-
-.analysis-row:last-child{
-  border-bottom:none;
-}
-
-.analysis span{
-  color:#e6effc;
-  font-weight:bold;
-}
-
-.performance{
-  margin-top:18px;
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:10px;
-}
-
-.perf{
-  padding:13px;
-  background:rgba(13,28,50,.9);
-  border:1px solid #203b62;
-  border-radius:12px;
-  text-align:center;
-}
-
-.perf-number{
-  font-size:19px;
-  font-weight:bold;
-  margin-top:5px;
-}
-
-.perf-label{
-  color:#8198b8;
-  font-size:10px;
-  text-transform:uppercase;
-}
-
-.api-box{
-  margin-top:18px;
-  padding:15px;
-}
-
-.api-title{
-  font-weight:bold;
-  margin-bottom:9px;
-}
-
-.api-status{
-  font-size:13px;
-  color:#8fa8c8;
-  line-height:1.6;
-}
-
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin-top:18px;
-}
-
-.action{padding:17px}
-
-.action h3{
-  margin:0 0 7px;
-  font-size:17px;
-}
-
-.action p{
-  margin:0;
-  color:#8fa8c8;
-  font-size:13px;
-  line-height:1.5;
-}
-
-.footer{
-  text-align:center;
-  color:#627b9e;
-  font-size:12px;
-  margin:18px 0 4px;
-}
-
-@media(max-width:900px){
-  .summary{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .performance{
-    grid-template-columns:repeat(3,1fr);
-  }
-}
-
-@media(max-width:800px){
-  .actions{
-    grid-template-columns:1fr;
-  }
-}
-
-@media(max-width:480px){
-  body{padding:12px}
-
-  h1{font-size:21px}
-
-  .header{
-    align-items:flex-start;
-  }
-
-  .online{display:none}
-
-  .summary{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .grid{
-    grid-template-columns:1fr;
-  }
-
-  .trade{
-    grid-template-columns:1fr 1fr;
-  }
-
-  .performance{
-    grid-template-columns:1fr 1fr;
-  }
-}
-</style>
-</head>
-
-<body>
-
-<div class="wrap">
-
-<div class="header">
-
-  <div class="brand">
-
-    <div class="logo">📡</div>
-
-    <div>
-      <h1>Trading Cloud Monitor</h1>
-
-      <div class="subtitle">
-        SMC • 12H + 1H + 5M Confirmation
-      </div>
-    </div>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Trading Cloud Monitor</title>  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1120;
+      color: #f8fafc;
+    }
+
+    header {
+      padding: 20px;
+      background: #111827;
+      border-bottom: 1px solid #243044;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 0;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 15px;
+      max-width: 1400px;
+      margin: auto;
+    }
+
+    .stat {
+      background: #111827;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    .stat-title {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 7px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .dashboard {
+      max-width: 1400px;
+      margin: auto;
+      padding: 0 15px 30px;
+    }
+
+    .pair-card {
+      background: #111827;
+      border: 1px solid #243044;
+      border-radius: 14px;
+      margin-top: 15px;
+      overflow: hidden;
+    }
+
+    .pair-header {
+      padding: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #243044;
+    }
+
+    .pair-name {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .status {
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .status-buy {
+      background: #064e3b;
+      color: #6ee7b7;
+    }
+
+    .status-sell {
+      background: #7f1d1d;
+      color: #fca5a5;
+    }
+
+    .status-wait {
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    .status-offline {
+      background: #451a03;
+      color: #fdba74;
+    }
+
+    .price-box {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .price-item {
+      background: #0b1120;
+      padding: 13px;
+      border-radius: 10px;
+    }
+
+    .price-label {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+
+    .price-value {
+      font-size: 17px;
+      font-weight: bold;
+    }
+
+    .green {
+      color: #34d399;
+    }
+
+    .red {
+      color: #f87171;
+    }
+
+    .yellow {
+      color: #fbbf24;
+    }
+
+    .blue {
+      color: #60a5fa;
+    }
+
+    .section {
+      padding: 18px;
+      border-top: 1px solid #243044;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+    }
+
+    .timeframes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .tf {
+      background: #0b1120;
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .tf-name {
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #cbd5e1;
+    }
+
+    .tf-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 13px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .analysis-item {
+      background: #0b1120;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .analysis-label {
+      color: #94a3b8;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+
+    .analysis-value {
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .message {
+      padding: 15px 18px;
+      color: #cbd5e1;
+      font-size: 13px;
+      border-top: 1px solid #243044;
+    }
+
+    .score {
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .alert-control {
+      max-width: 1400px;
+      margin: 15px auto 0;
+      padding: 0 15px;
+    }
+
+    .alert-box {
+      background: #111827;
+      border: 1px solid #243044;
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle {
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .toggle-on {
+      background: #065f46;
+      color: white;
+    }
+
+    .toggle-off {
+      background: #7f1d1d;
+      color: white;
+    }
+
+    .error {
+      color: #f87171;
+    }
+
+    @media (max-width: 900px) {
+      .topbar {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .price-box {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .analysis-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 20px;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .price-box {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .timeframes {
+        grid-template-columns: 1fr;
+      }
+
+      .analysis-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .pair-name {
+        font-size: 18px;
+      }
+    }
+  </style></head><body><header>
+  <h1>📊 Trading Cloud Monitor</h1>
+  <p>12H + 1H + 5M • SMC • RSI • Breakout • Rejection</p>
+</header><div class="topbar">  <div class="stat">
+    <div class="stat-title">SYSTEM</div>
+    <div id="systemStatus" class="stat-value">Loading...</div>
+  </div>  <div class="stat">
+    <div class="stat-title">MARKET</div>
+    <div id="marketStatus" class="stat-value">Loading...</div>
+  </div>  <div class="stat">
+    <div class="stat-title">LAST SCAN</div>
+    <div id="lastScan" class="stat-value">—</div>
+  </div>  <div class="stat">
+    <div class="stat-title">API</div>
+    <div id="apiStatus" class="stat-value">Loading...</div>
+  </div></div><div class="alert-control">  <div class="alert-box"><div>
+  <strong>🔔 Telegram Alerts</strong>
+  <div id="alertText" style="font-size:12px;color:#94a3b8;margin-top:5px;">
+    Checking...
   </div>
-
-  <div class="online" id="onlineText">
-    ● Connecting...
-  </div>
-
-  <button
-    class="refresh"
-    onclick="loadDashboard()"
-    title="Refresh dashboard">
-    ↻
-  </button>
-
 </div>
 
-
-<div class="summary">
-
-  <div class="box">
-
-    <div class="label">
-      System Status
-    </div>
-
-    <div
-      class="value orange"
-      id="system">
-      Connecting...
-    </div>
-
-  </div>
-
-
-  <div class="box">
-
-    <div class="label">
-      Monitored Pairs
-    </div>
-
-    <div
-      class="value blue"
-      id="pairCount">
-      0
-    </div>
-
-  </div>
-
-
-  <div class="box">
-
-    <div class="label">
-      Telegram Alerts
-    </div>
-
-    <button
-      id="alertToggle"
-      class="alert-button"
-      type="button">
-      Loading...
-    </button>
-
-  </div>
-
-
-  <div class="box">
-
-    <div class="label">
-      Last Scan
-    </div>
-
-    <div
-      class="value orange"
-      id="lastScan">
-      Starting...
-    </div>
-
-  </div>
-
-</div>
-
-
-<div class="section">
-
-  <div class="section-title">
-
-    <h2>
-      🌐 Market Pairs Status
-    </h2>
-
-    <div
-      class="auto"
-      id="autoText">
-      ● Auto Refresh
-    </div>
-
-  </div>
-
-
-  <div
-    id="s"
-    class="meta">
-    Connecting to trading engine...
-  </div>
-
-
-  <div
-    id="g"
-    class="grid">
-  </div>
-
-</div>
-
-
-<div class="performance">
-
-  <div class="perf">
-
-    <div class="perf-label">
-      Total Signals
-    </div>
-
-    <div
-      class="perf-number blue"
-      id="totalSignals">
-      0
-    </div>
-
-  </div>
-
-
-  <div class="perf">
-
-    <div class="perf-label">
-      BUY
-    </div>
-
-    <div
-      class="perf-number green"
-      id="buys">
-      0
-    </div>
-
-  </div>
-
-
-  <div class="perf">
-
-    <div class="perf-label">
-      SELL
-    </div>
-
-    <div
-      class="perf-number red"
-      id="sells">
-      0
-    </div>
-
-  </div>
-
-
-  <div class="perf">
-
-    <div class="perf-label">
-      Wins
-    </div>
-
-    <div
-      class="perf-number green"
-      id="wins">
-      0
-    </div>
-
-  </div>
-
-
-  <div class="perf">
-
-    <div class="perf-label">
-      Losses
-    </div>
-
-    <div
-      class="perf-number red"
-      id="losses">
-      0
-    </div>
-
-  </div>
-
-</div>
-
-
-<div class="api-box">
-
-  <div class="api-title">
-    🔌 Data Connection
-  </div>
-
-  <div
-    class="api-status"
-    id="apiStatus">
-    Checking Twelve Data connection...
-  </div>
-
-</div>
-
-
-<div class="actions">
-
-  <div class="action">
-
-    <h3>
-      📊 Three-Pair Signal Engine
-    </h3>
-
-    <p>
-      Monitoring only XAU/USD (Gold),
-      USD/CAD and GBP/JPY.
-      The system uses 12H direction,
-      1H structure and 5M entry confirmation.
-    </p>
-
-  </div>
-
-
-  <div class="action">
-
-    <h3>
-      🧠 Smart Money Concepts
-    </h3>
-
-    <p>
-      The engine checks BOS, CHoCH,
-      liquidity, rejection, breakout,
-      market location and over-extension
-      before producing a strong signal.
-    </p>
-
-  </div>
-
-</div>
-
-
-<div class="footer">
-  © 2026 Trading Cloud Monitor. All rights reserved.
-</div>
-
-</div>
-
-
-<script>
-
-let currentAlertState = true;
-
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function escapeHTML(value){
-
-  if(
-    value === null ||
-    value === undefined
-  ){
-    return "";
+<button
+  id="alertButton"
+  class="toggle"
+  onclick="toggleAlerts()">
+  Loading...
+</button>
+
+  </div></div><main id="dashboard" class="dashboard">  <div style="text-align:center;padding:40px;color:#94a3b8;">
+    Loading market data...
+  </div></main><div class="footer">
+  Trading Cloud Monitor • Automatic market monitoring
+</div><script>
+
+let currentAlerts = true;
+
+function escapeHtml(value) {
+
+  if (value === null || value === undefined) {
+    return "—";
   }
 
   return String(value)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
+function statusClass(status) {
 
-function formatTime(value){
+  if (status === "BUY") {
+    return "status-buy";
+  }
 
-  if(!value){
+  if (status === "SELL") {
+    return "status-sell";
+  }
+
+  if (status === "OFFLINE") {
+    return "status-offline";
+  }
+
+  return "status-wait";
+}
+
+function trendClass(trend) {
+
+  if (trend === "BULLISH") {
+    return "green";
+  }
+
+  if (trend === "BEARISH") {
+    return "red";
+  }
+
+  return "yellow";
+}
+
+function formatTime(value) {
+
+  if (!value) {
     return "—";
   }
 
-  try{
+  try {
 
-    const d = new Date(value);
+    return new Date(value)
+      .toLocaleString();
 
-    if(isNaN(d.getTime())){
-      return String(value);
-    }
+  } catch (e) {
 
-    return d.toLocaleString();
-
-  }catch(error){
-
-    return "—";
-
+    return value;
   }
 }
 
+function valueOrDash(value) {
 
-function formatPrice(value){
-
-  if(
+  if (
     value === null ||
     value === undefined ||
     value === ""
-  ){
+  ) {
     return "—";
   }
 
-  return escapeHTML(value);
+  return escapeHtml(value);
 }
 
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-function normalizeStatus(x){
-
-  let status =
-    x.status ||
-    x.signal ||
-    "WAIT";
-
-  status =
-    String(status).toUpperCase();
-
-  if(
-    status.includes("STRONG BUY") ||
-    status === "BUY"
-  ){
-    return "BUY";
-  }
-
-  if(
-    status.includes("STRONG SELL") ||
-    status === "SELL"
-  ){
-    return "SELL";
-  }
-
-  if(
-    status.includes("OFFLINE") ||
-    status.includes("ERROR")
-  ){
-    return "OFFLINE";
-  }
-
-  return "WAIT";
-}
-
-
-function getSignalClass(status){
-
-  if(status === "BUY") return "buy";
-
-  if(status === "SELL") return "sell";
-
-  if(status === "OFFLINE") return "offline";
-
-  return "wait";
-}
-
-
-function getDotClass(status){
-
-  if(status === "BUY") return "buy-dot";
-
-  if(status === "SELL") return "sell-dot";
-
-  if(status === "OFFLINE") return "offline-dot";
-
-  return "";
-}
-
-
-/* =========================================================
-   TIMEFRAME
-========================================================= */
-
-function trendValue(tf){
-
-  if(!tf){
-    return "UNKNOWN";
-  }
-
-  return (
-    tf.trend ||
-    tf.bias ||
-    tf.direction ||
-    tf.status ||
-    "UNKNOWN"
-  );
-}
-
-
-function rsiValue(tf){
-
-  if(!tf){
-    return null;
-  }
-
-  return (
-    tf.rsi ??
-    tf.RSI ??
-    null
-  );
-}
-
-
-function timeframeHTML(title,tf){
-
-  const trend =
-    trendValue(tf);
-
-  const rsi =
-    rsiValue(tf);
-
-  return `
-
-    <div class="tf">
-
-      <div class="tf-title">
-        ${title}
-      </div>
-
-      <div class="tf-value">
-        ${escapeHTML(trend)}
-      </div>
-
-      <div class="tf-rsi">
-        RSI:
-        ${
-          rsi !== null &&
-          rsi !== undefined
-            ? escapeHTML(rsi)
-            : "—"
-        }
-      </div>
-
-    </div>
-
-  `;
-}
-
-
-/* =========================================================
-   SMC ANALYSIS
-========================================================= */
-
-function analysisHTML(x){
-
-  const a =
-    x.analysis ||
-    x.smc ||
-    {};
-
-  const structure =
-    a.structure ||
-    x.structure ||
-    "—";
-
-  const bos =
-    a.bos ??
-    x.bos ??
-    "—";
-
-  const choch =
-    a.choch ??
-    x.choch ??
-    "—";
-
-  const liquidity =
-    a.liquidity ||
-    x.liquidity ||
-    "—";
-
-  const breakout =
-    a.breakout ??
-    x.breakout ??
-    false;
-
-  const rejection =
-    a.rejection ??
-    x.rejection ??
-    false;
-
-  const location =
-    a.location ||
-    x.location ||
-    "—";
-
-  const extended =
-    a.extended ??
-    x.extended ??
-    false;
+function renderPair(pair) {
 
   const h12 =
-    a.h12SMC ||
-    a.h12 ||
-    x.h12SMC ||
-    "UNKNOWN";
+    pair.timeframes &&
+    pair.timeframes.h12
+      ? pair.timeframes.h12
+      : {};
 
   const h1 =
-    a.h1SMC ||
-    a.h1 ||
-    x.h1SMC ||
-    "UNKNOWN";
+    pair.timeframes &&
+    pair.timeframes.h1
+      ? pair.timeframes.h1
+      : {};
 
-  const previous12H =
-    a.previous12H ||
-    x.previous12H ||
-    "UNKNOWN";
+  const m5 =
+    pair.timeframes &&
+    pair.timeframes.m5
+      ? pair.timeframes.m5
+      : {};
 
-  const current12H =
-    a.current12H ||
-    x.current12H ||
-    "UNKNOWN";
-
-  return `
-
-    <div class="analysis">
-
-      <div class="analysis-row">
-        <b>12H Bias</b>
-        <span>${escapeHTML(h12)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Previous 12H</b>
-        <span>${escapeHTML(previous12H)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Current 12H</b>
-        <span>${escapeHTML(current12H)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>1H Bias</b>
-        <span>${escapeHTML(h1)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Structure</b>
-        <span>${escapeHTML(structure)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>BOS</b>
-        <span>${escapeHTML(bos)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>CHoCH</b>
-        <span>${escapeHTML(choch)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Liquidity</b>
-        <span>${escapeHTML(liquidity)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Breakout</b>
-        <span>${breakout ? "YES" : "NO"}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Rejection</b>
-        <span>${rejection ? "YES" : "NO"}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Location</b>
-        <span>${escapeHTML(location)}</span>
-      </div>
-
-      <div class="analysis-row">
-        <b>Extended</b>
-        <span>${extended ? "YES" : "NO"}</span>
-      </div>
-
-    </div>
-
-  `;
-}
-
-
-/* =========================================================
-   PAIR CARD
-========================================================= */
-
-function pairCard(x){
+  const analysis =
+    pair.analysis || {};
 
   const status =
-    normalizeStatus(x);
-
-  const signalClass =
-    getSignalClass(status);
-
-  const dotClass =
-    getDotClass(status);
-
-  const scoreNumber =
-    Number(x.score);
-
-  const score =
-    Number.isFinite(scoreNumber)
-      ? `${scoreNumber}/5`
-      : "0/5";
-
-  const timeframes =
-    x.timeframes ||
-    x.tf ||
-    {};
-
-  const message =
-    x.message ||
-    x.detail ||
-    x.reason ||
-    (
-      status === "BUY"
-        ? "Strong bullish conditions detected."
-        : status === "SELL"
-          ? "Strong bearish conditions detected."
-          : status === "OFFLINE"
-            ? "Market data unavailable."
-            : "Waiting for confirmation..."
-    );
-
-  const entry =
-    x.entry ??
-    x.entryPrice;
-
-  const stopLoss =
-    x.stopLoss ??
-    x.sl;
-
-  const takeProfit =
-    x.takeProfit ??
-    x.tp;
-
-  const currentPrice =
-    x.price ??
-    x.currentPrice;
-
-  let tradeHTML = "";
-
-  if(
-    entry !== null &&
-    entry !== undefined
-  ){
-
-    tradeHTML = `
-
-      <div class="trade">
-
-        <div>
-          Entry
-          <b>${formatPrice(entry)}</b>
-        </div>
-
-        <div>
-          Stop Loss
-          <b>${formatPrice(stopLoss)}</b>
-        </div>
-
-        <div>
-          Take Profit
-          <b>${formatPrice(takeProfit)}</b>
-        </div>
-
-      </div>
-
-    `;
-  }
-
-  const marketStatus =
-    x.marketStatus ||
-    x.market ||
-    "";
+    pair.status || "WAIT";
 
   return `
 
-    <div class="card">
+    <div class="pair-card">
 
-      <div class="card-head">
+      <div class="pair-header">
 
         <div>
 
-          <div class="pair">
-            ${escapeHTML(
-              x.symbol ||
-              x.pair ||
-              "UNKNOWN"
-            )}
+          <div class="pair-name">
+            ${escapeHtml(pair.symbol)}
           </div>
 
-          <div class="sig ${signalClass}">
-
-            ${
-              status === "BUY"
-                ? "🟢 STRONG BUY"
-                : status === "SELL"
-                  ? "🔴 STRONG SELL"
-                  : status === "OFFLINE"
-                    ? "⚠️ OFFLINE"
-                    : "⏳ WAIT"
-            }
-
-            ${
-              scoreNumber > 0
-                ? ` — ${score}`
-                : ""
-            }
-
+          <div style="font-size:12px;color:#64748b;margin-top:4px;">
+            Updated:
+            ${formatTime(pair.updated)}
           </div>
 
         </div>
 
-        <span
-          class="dot ${dotClass}">
-        </span>
+        <div class="status ${statusClass(status)}">
+          ${escapeHtml(status)}
+        </div>
 
       </div>
 
 
-      <div class="details">
-        ${escapeHTML(message)}
+      <div class="price-box">
+
+        <div class="price-item">
+
+          <div class="price-label">
+            CURRENT PRICE
+          </div>
+
+          <div class="price-value blue">
+            ${valueOrDash(pair.price)}
+          </div>
+
+        </div>
+
+
+        <div class="price-item">
+
+          <div class="price-label">
+            ENTRY
+          </div>
+
+          <div class="price-value">
+            ${valueOrDash(pair.entry)}
+          </div>
+
+        </div>
+
+
+        <div class="price-item">
+
+          <div class="price-label">
+            STOP LOSS
+          </div>
+
+          <div class="price-value red">
+            ${valueOrDash(pair.stopLoss)}
+          </div>
+
+        </div>
+
+
+        <div class="price-item">
+
+          <div class="price-label">
+            TAKE PROFIT
+          </div>
+
+          <div class="price-value green">
+            ${valueOrDash(pair.takeProfit)}
+          </div>
+
+        </div>
+
+
       </div>
 
 
-      ${
-        marketStatus
-          ? `
-            <div class="meta">
-              Market:
-              <b>
-                ${escapeHTML(marketStatus)}
-              </b>
+      <div class="section">
+
+        <div class="section-title">
+          SIGNAL QUALITY
+        </div>
+
+        <div style="display:flex;align-items:center;gap:15px;">
+
+          <div class="score">
+            ⭐ ${valueOrDash(pair.score)}/5
+          </div>
+
+          <div style="color:#94a3b8;font-size:13px;">
+            ${escapeHtml(pair.message || "—")}
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="section">
+
+        <div class="section-title">
+          MULTI-TIMEFRAME CONFIRMATION
+        </div>
+
+        <div class="timeframes">
+
+
+          <div class="tf">
+
+            <div class="tf-name">
+              📊 12H
             </div>
-          `
-          : ""
-      }
+
+            <div class="tf-row">
+              <span>Trend</span>
+              <strong class="${trendClass(h12.trend)}">
+                ${valueOrDash(h12.trend)}
+              </strong>
+            </div>
+
+            <div class="tf-row">
+              <span>RSI</span>
+              <strong>
+                ${valueOrDash(h12.rsi)}
+              </strong>
+            </div>
+
+            <div class="tf-row">
+              <span>Previous</span>
+              <strong class="${trendClass(h12.previous)}">
+                ${valueOrDash(h12.previous)}
+              </strong>
+            </div>
+
+            <div class="tf-row">
+              <span>Current</span>
+              <strong class="${trendClass(h12.current)}">
+                ${valueOrDash(h12.current)}
+              </strong>
+            </div>
+
+          </div>
 
 
-      <div class="timeframes">
+          <div class="tf">
 
-        ${timeframeHTML(
-          "12H",
-          timeframes.h12 ||
-          timeframes["12H"] ||
-          x.h12
-        )}
+            <div class="tf-name">
+              📊 1H
+            </div>
 
-        ${timeframeHTML(
-          "1H",
-          timeframes.h1 ||
-          timeframes["1H"] ||
-          x.h1
-        )}
+            <div class="tf-row">
+              <span>Trend</span>
+              <strong class="${trendClass(h1.trend)}">
+                ${valueOrDash(h1.trend)}
+              </strong>
+            </div>
 
-        ${timeframeHTML(
-          "5M",
-          timeframes.m5 ||
-          timeframes["5M"] ||
-          x.m5
-        )}
+            <div class="tf-row">
+              <span>RSI</span>
+              <strong>
+                ${valueOrDash(h1.rsi)}
+              </strong>
+            </div>
+
+          </div>
+
+
+          <div class="tf">
+
+            <div class="tf-name">
+              📊 5M
+            </div>
+
+            <div class="tf-row">
+              <span>Trend</span>
+              <strong class="${trendClass(m5.trend)}">
+                ${valueOrDash(m5.trend)}
+              </strong>
+            </div>
+
+            <div class="tf-row">
+              <span>RSI</span>
+              <strong>
+                ${valueOrDash(m5.rsi)}
+              </strong>
+            </div>
+
+          </div>
+
+
+        </div>
 
       </div>
 
 
-      ${tradeHTML}
+      <div class="section">
+
+        <div class="section-title">
+          🔎 SMART MONEY CONCEPT / STRUCTURE
+        </div>
+
+        <div class="analysis-grid">
 
 
-      ${
-        status !== "OFFLINE"
-          ? analysisHTML(x)
-          : ""
-      }
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              12H SMC
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.h12SMC)}
+            </div>
+
+          </div>
 
 
-      <div class="meta">
+          <div class="analysis-item">
 
-        Current Price:
-        ${formatPrice(currentPrice)}
+            <div class="analysis-label">
+              1H SMC
+            </div>
 
-        <br>
+            <div class="analysis-value">
+              ${valueOrDash(analysis.h1SMC)}
+            </div>
 
-        Updated:
-        ${formatTime(
-          x.updatedAt ||
-          x.updated ||
-          x.timestamp
-        )}
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              5M STRUCTURE
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.structure)}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              LOCATION
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.location)}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              BOS
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.bos)}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              CHoCH
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.choch)}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              LIQUIDITY
+            </div>
+
+            <div class="analysis-value">
+              ${valueOrDash(analysis.liquidity)}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              BREAKOUT
+            </div>
+
+            <div class="analysis-value">
+              ${analysis.breakout ? "YES" : "NO"}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              REJECTION
+            </div>
+
+            <div class="analysis-value">
+              ${analysis.rejection ? "YES" : "NO"}
+            </div>
+
+          </div>
+
+
+          <div class="analysis-item">
+
+            <div class="analysis-label">
+              EXTENDED
+            </div>
+
+            <div class="analysis-value">
+              ${analysis.extended ? "YES" : "NO"}
+            </div>
+
+          </div>
+
+
+        </div>
+
+      </div>
+
+
+      <div class="message">
+
+        <strong>Engine:</strong>
+        12H + 1H + 5M
+
+        &nbsp; | &nbsp;
+
+        <strong>Entry TF:</strong>
+        5M
+
+        &nbsp; | &nbsp;
+
+        <strong>R:R:</strong>
+        1:2
 
       </div>
 
@@ -1231,482 +812,296 @@ function pairCard(x){
   `;
 }
 
+async function loadDashboard() {
 
-/* =========================================================
-   DASHBOARD
-========================================================= */
-
-async function loadDashboard(){
-
-  try{
+  try {
 
     const response =
       await fetch(
         "/api/status",
         {
-          cache:"no-store"
+          cache: "no-store"
         }
       );
 
-    if(!response.ok){
-
+    if (!response.ok) {
       throw new Error(
-        `HTTP ${response.status}`
+        "Server returned HTTP " +
+        response.status
       );
-
     }
 
     const data =
       await response.json();
 
 
-    /* SYSTEM */
+    /*
+    SYSTEM
+    */
 
-    const online =
-      data.online !== false;
-
-    const system =
-      document.getElementById("system");
-
-    system.textContent =
-      online
-        ? "Online"
-        : "Offline";
-
-    system.className =
-      online
-        ? "value green"
-        : "value red";
-
-
-    document.getElementById(
-      "onlineText"
-    ).textContent =
-      online
-        ? "● System Online"
-        : "● System Offline";
-
-
-    /* PAIRS */
-
-    const pairs =
-      Object.values(
-        data.pairs || {}
+    const systemStatus =
+      document.getElementById(
+        "systemStatus"
       );
 
-    document.getElementById(
-      "pairCount"
-    ).textContent =
-      pairs.length;
+    systemStatus.textContent =
+      data.online
+        ? "🟢 ONLINE"
+        : "🔴 OFFLINE";
 
 
-    /* LAST SCAN */
+    /*
+    MARKET
+    */
+
+    const marketStatus =
+      document.getElementById(
+        "marketStatus"
+      );
+
+    marketStatus.textContent =
+      data.marketOpen
+        ? "🟢 OPEN"
+        : "🔴 CLOSED";
+
+
+    /*
+    LAST SCAN
+    */
 
     document.getElementById(
       "lastScan"
     ).textContent =
-      data.lastScan
-        ? new Date(
-            data.lastScan
-          ).toLocaleTimeString()
-        : "Starting...";
-
-
-    /* SCAN INFO */
-
-    document.getElementById(
-      "s"
-    ).textContent =
-      "Last scan: " +
-      (
+      formatTime(
         data.lastScan
-          ? formatTime(data.lastScan)
-          : "Starting..."
-      ) +
-      " • Entry TF: " +
-      (
-        data.timeframe ||
-        "5min"
-      ) +
-      " • Confirmation: 12H + 1H + 5M";
+      );
 
 
-    /* GRID */
+    /*
+    API
+    */
 
-    const grid =
-      document.getElementById("g");
+    const apiStatus =
+      document.getElementById(
+        "apiStatus"
+      );
+
+    if (
+      data.api &&
+      data.api.status ===
+        "CONFIGURED"
+    ) {
+
+      apiStatus.textContent =
+        "🟢 CONFIGURED";
+
+    } else {
+
+      apiStatus.textContent =
+        "🔴 MISSING";
+
+    }
 
 
-    if(!pairs.length){
+    /*
+    ALERTS
+    */
 
-      grid.innerHTML = `
+    currentAlerts =
+      Boolean(
+        data.alerts
+      );
 
-        <div class="card">
+    updateAlertButton();
 
-          <div class="sig wait">
-            ⏳ WAIT
-          </div>
 
-          <div class="details">
-            Waiting for market data...
-          </div>
+    /*
+    PAIRS
+    */
 
+    const dashboard =
+      document.getElementById(
+        "dashboard"
+      );
+
+    const pairs =
+      data.pairs || {};
+
+
+    const pairNames =
+      Object.keys(pairs);
+
+
+    if (!pairNames.length) {
+
+      dashboard.innerHTML = `
+        <div style="
+          text-align:center;
+          padding:40px;
+          color:#94a3b8;
+        ">
+          No pairs available.
         </div>
-
       `;
 
-    }else{
-
-      grid.innerHTML =
-        pairs
-          .map(pairCard)
-          .join("");
-
+      return;
     }
 
 
-    /* PERFORMANCE */
-
-    const performance =
-      data.performance || {};
-
-
-    document.getElementById(
-      "totalSignals"
-    ).textContent =
-      performance.totalSignals || 0;
-
-    document.getElementById(
-      "buys"
-    ).textContent =
-      performance.buys || 0;
-
-    document.getElementById(
-      "sells"
-    ).textContent =
-      performance.sells || 0;
-
-    document.getElementById(
-      "wins"
-    ).textContent =
-      performance.wins || 0;
-
-    document.getElementById(
-      "losses"
-    ).textContent =
-      performance.losses || 0;
+    dashboard.innerHTML =
+      pairNames
+        .map(
+          name =>
+            renderPair(
+              pairs[name]
+            )
+        )
+        .join("");
 
 
-    /* API STATUS */
-
-    const api =
-      data.api || {};
-
-    let apiText =
-      `Status: ${
-        api.status ||
-        "UNKNOWN"
-      }`;
-
-    if(
-      api.totalRequests !== undefined
-    ){
-
-      apiText +=
-        ` • Total API requests: ${
-          api.totalRequests
-        }`;
-
-    }
-
-    if(
-      api.requestsThisScan !== undefined
-    ){
-
-      apiText +=
-        ` • This scan: ${
-          api.requestsThisScan
-        }`;
-
-    }
-
-    if(api.lastError){
-
-      apiText +=
-        ` • Error: ${
-          api.lastError
-        }`;
-
-    }
-
-    if(api.cooldownUntil){
-
-      apiText +=
-        ` • Cooldown until: ${
-          formatTime(
-            api.cooldownUntil
-          )
-        }`;
-
-    }
-
-    document.getElementById(
-      "apiStatus"
-    ).textContent =
-      apiText;
-
-
-    document.getElementById(
-      "autoText"
-    ).textContent =
-      "● Auto Refresh";
-
-
-  }catch(error){
+  } catch (error) {
 
     console.error(
-      "Dashboard error:",
       error
     );
 
     document.getElementById(
-      "system"
+      "systemStatus"
     ).textContent =
-      "Offline";
+      "🔴 ERROR";
 
     document.getElementById(
-      "system"
-    ).className =
-      "value red";
-
-    document.getElementById(
-      "onlineText"
-    ).textContent =
-      "● System Offline";
-
-    document.getElementById(
-      "lastScan"
-    ).textContent =
-      "Unavailable";
-
-    document.getElementById(
-      "s"
-    ).textContent =
-      "Unable to connect to trading engine.";
-
-    document.getElementById(
-      "apiStatus"
-    ).textContent =
-      "Dashboard connection error: " +
-      error.message;
-
-    document.getElementById(
-      "g"
+      "dashboard"
     ).innerHTML = `
 
-      <div class="card">
+      <div style="
+        background:#111827;
+        border:1px solid #7f1d1d;
+        border-radius:12px;
+        padding:25px;
+        margin-top:15px;
+        text-align:center;
+      ">
 
-        <div class="sig offline">
-          ⚠️ OFFLINE
+        <div style="
+          color:#f87171;
+          font-weight:bold;
+          margin-bottom:8px;
+        ">
+          Unable to connect to server
         </div>
 
-        <div class="details">
-          Unable to connect to
-          /api/status.
+        <div style="
+          color:#94a3b8;
+          font-size:13px;
+        ">
+          ${escapeHtml(error.message)}
         </div>
 
       </div>
 
     `;
-
-  }
-
-}
-
-
-/* =========================================================
-   ALERT BUTTON
-========================================================= */
-
-const alertToggle =
-  document.getElementById(
-    "alertToggle"
-  );
-
-
-function updateAlertButton(enabled){
-
-  currentAlertState =
-    Boolean(enabled);
-
-  if(currentAlertState){
-
-    alertToggle.textContent =
-      "ON";
-
-    alertToggle.className =
-      "alert-button alert-on";
-
-  }else{
-
-    alertToggle.textContent =
-      "OFF";
-
-    alertToggle.className =
-      "alert-button alert-off";
-
   }
 }
 
 
-/* =========================================================
-   ALERT STATUS
-========================================================= */
+function updateAlertButton() {
 
-async function loadAlertStatus(){
+  const button =
+    document.getElementById(
+      "alertButton"
+    );
 
-  try{
+  const text =
+    document.getElementById(
+      "alertText"
+    );
+
+  if (currentAlerts) {
+
+    button.textContent =
+      "🔔 ON";
+
+    button.className =
+      "toggle toggle-on";
+
+    text.textContent =
+      "Telegram signal alerts are enabled.";
+
+  } else {
+
+    button.textContent =
+      "🔕 OFF";
+
+    button.className =
+      "toggle toggle-off";
+
+    text.textContent =
+      "Telegram signal alerts are disabled.";
+
+  }
+}
+
+
+async function toggleAlerts() {
+
+  const newValue =
+    !currentAlerts;
+
+  try {
 
     const response =
       await fetch(
-        "/api/status",
+        "/api/alerts",
         {
-          cache:"no-store"
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              enabled:
+                newValue
+            })
         }
       );
-
-    if(!response.ok){
-
-      throw new Error(
-        "Alert status unavailable"
-      );
-
-    }
 
     const data =
       await response.json();
 
-    updateAlertButton(
-      data.alerts ??
-      data.alertEnabled ??
-      true
+    currentAlerts =
+      Boolean(
+        data.enabled
+      );
+
+    updateAlertButton();
+
+  } catch (error) {
+
+    alert(
+      "Unable to change alert setting."
     );
-
-  }catch(error){
-
-    console.error(
-      "Alert status error:",
-      error
-    );
-
-    alertToggle.textContent =
-      "ERROR";
-
-    alertToggle.className =
-      "alert-button alert-off";
 
   }
 }
-
-
-/* =========================================================
-   TOGGLE ALERTS
-========================================================= */
-
-alertToggle.addEventListener(
-  "click",
-  async function(){
-
-    alertToggle.disabled =
-      true;
-
-    try{
-
-      const newState =
-        !currentAlertState;
-
-      const response =
-        await fetch(
-          "/api/alerts",
-          {
-            method:"POST",
-
-            headers:{
-              "Content-Type":
-                "application/json"
-            },
-
-            body:
-              JSON.stringify({
-                enabled:
-                  newState
-              })
-          }
-        );
-
-      if(!response.ok){
-
-        throw new Error(
-          `HTTP ${response.status}`
-        );
-
-      }
-
-      const result =
-        await response.json();
-
-      if(
-        result.ok !== false
-      ){
-
-        updateAlertButton(
-          result.enabled ??
-          result.alerts ??
-          newState
-        );
-
-      }else{
-
-        throw new Error(
-          "Server rejected alert change"
-        );
-
-      }
-
-    }catch(error){
-
-      console.error(
-        "Alert toggle error:",
-        error
-      );
-
-      alertToggle.textContent =
-        "ERROR";
-
-    }
-
-    alertToggle.disabled =
-      false;
-
-  }
-);
-
-
-/* =========================================================
-   START
-========================================================= */
-
-loadDashboard();
-
-loadAlertStatus();
 
 
 /*
-  Dashboard only refreshes the
-  frontend every 15 seconds.
-  This does NOT make Twelve Data
-  requests. The backend controls
-  the actual market-data polling.
+=========================================================
+AUTO REFRESH
+=========================================================
+*/
+
+loadDashboard();
+
+/*
+Refresh dashboard every 15 seconds.
+
+This does NOT request Twelve Data.
+It only reads /api/status.
 */
 
 setInterval(
@@ -1714,12 +1109,5 @@ setInterval(
   15000
 );
 
-setInterval(
-  loadAlertStatus,
-  15000
-);
-
-</script>
-
-</body>
+</script></body>
 </html>
