@@ -1,4 +1,4 @@
-cat > /home/claude/patched-server.js << 'ENDOFFILE'
+
 const express = require("express");
 const path = require("path");
 
@@ -1258,5 +1258,4 @@ app.listen(PORT, async () => {
     }
   }, POLL_MS);
 });
-ENDOFFILE
-echo "Done"
+
