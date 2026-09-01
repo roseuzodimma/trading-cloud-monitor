@@ -50,6 +50,7 @@ PAIR
 */
 
 const PAIRS = [
+  "XAU/USD",
   "GBP/JPY"
 ];
 
