@@ -20,17 +20,18 @@
 
     header {
       padding: 20px;
-      background: #111a2e;
-      border-bottom: 1px solid #26324d;
+      background: #111827;
+      border-bottom: 1px solid #263244;
     }
 
-    h1 {
-      margin: 0 0 8px;
+    header h1 {
+      margin: 0;
       font-size: 24px;
     }
 
-    .subtitle {
-      color: #9ca9c7;
+    header p {
+      margin: 6px 0 0;
+      color: #9ca3af;
       font-size: 14px;
     }
 
@@ -40,29 +41,28 @@
       padding: 20px;
     }
 
-    .topbar {
+    .top-grid {
       display: grid;
-      grid-template-columns:
-        repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
       margin-bottom: 20px;
     }
 
-    .box {
-      background: #111a2e;
-      border: 1px solid #26324d;
+    .card {
+      background: #111827;
+      border: 1px solid #263244;
       border-radius: 12px;
-      padding: 16px;
+      padding: 18px;
     }
 
-    .label {
-      color: #8e9bb8;
-      font-size: 12px;
-      margin-bottom: 6px;
+    .card-title {
+      color: #9ca3af;
+      font-size: 13px;
+      margin-bottom: 8px;
     }
 
-    .value {
-      font-size: 18px;
+    .card-value {
+      font-size: 20px;
       font-weight: bold;
     }
 
@@ -71,64 +71,121 @@
     }
 
     .closed {
-      color: #f59e0b;
+      color: #f87171;
     }
 
-    .error {
-      color: #ef4444;
+    .online {
+      color: #22c55e;
+    }
+
+    .offline {
+      color: #f87171;
+    }
+
+    .alert-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .alert-text strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .alert-text span {
+      display: block;
+      margin-top: 5px;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .switch {
+      position: relative;
+      width: 58px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      background: #374151;
+      border-radius: 30px;
+      transition: 0.25s;
+    }
+
+    .slider:before {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      left: 3px;
+      top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.25s;
+    }
+
+    input:checked + .slider {
+      background: #16a34a;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(28px);
     }
 
     .pairs {
       display: grid;
-      grid-template-columns:
-        repeat(auto-fit, minmax(330px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
     }
 
-    .card {
-      background: #111a2e;
-      border: 1px solid #26324d;
-      border-radius: 14px;
-      padding: 18px;
-    }
-
-    .card-header {
+    .pair-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-bottom: 1px solid #263244;
+      padding-bottom: 12px;
       margin-bottom: 15px;
     }
 
-    .symbol {
+    .pair-name {
       font-size: 21px;
       font-weight: bold;
     }
 
     .status {
-      padding: 7px 12px;
+      padding: 6px 12px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: bold;
     }
 
-    .BUY {
-      background: rgba(34,197,94,.15);
-      color: #22c55e;
+    .status-buy {
+      background: #14532d;
+      color: #4ade80;
     }
 
-    .SELL {
-      background: rgba(239,68,68,.15);
-      color: #ef4444;
+    .status-sell {
+      background: #7f1d1d;
+      color: #f87171;
     }
 
-    .WAIT {
-      background: rgba(148,163,184,.15);
-      color: #94a3b8;
+    .status-wait {
+      background: #374151;
+      color: #d1d5db;
     }
 
-    .OFFLINE {
-      background: rgba(239,68,68,.15);
-      color: #ef4444;
+    .status-offline {
+      background: #450a0a;
+      color: #fca5a5;
     }
 
     .price {
@@ -137,55 +194,74 @@
       margin-bottom: 15px;
     }
 
-    .signal-grid {
+    .trade-grid {
       display: grid;
-      grid-template-columns:
-        repeat(3, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
       margin-bottom: 15px;
     }
 
-    .signal-box {
+    .trade-box {
       background: #0b1220;
       border-radius: 8px;
       padding: 10px;
-      text-align: center;
     }
 
-    .signal-box small {
+    .trade-box small {
       display: block;
-      color: #7f8ba5;
+      color: #9ca3af;
       margin-bottom: 5px;
     }
 
-    .signal-box strong {
-      font-size: 13px;
+    .trade-box strong {
+      font-size: 15px;
     }
 
-    .trade {
+    .timeframes {
       display: grid;
-      grid-template-columns:
-        repeat(3, 1fr);
-      gap: 8px;
-      margin: 15px 0;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 15px;
     }
 
-    .trade div {
+    .tf {
       background: #0b1220;
-      padding: 12px 8px;
       border-radius: 8px;
+      padding: 12px;
       text-align: center;
     }
 
-    .trade small {
-      display: block;
-      color: #7f8ba5;
-      margin-bottom: 5px;
+    .tf-title {
+      color: #9ca3af;
+      font-size: 12px;
+      margin-bottom: 7px;
+    }
+
+    .tf-trend {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .bullish {
+      color: #4ade80;
+    }
+
+    .bearish {
+      color: #f87171;
+    }
+
+    .neutral {
+      color: #facc15;
+    }
+
+    .unknown {
+      color: #9ca3af;
     }
 
     .analysis {
-      border-top: 1px solid #26324d;
-      padding-top: 14px;
+      margin-top: 15px;
+      border-top: 1px solid #263244;
+      padding-top: 15px;
     }
 
     .analysis-row {
@@ -196,54 +272,98 @@
     }
 
     .analysis-row span:first-child {
-      color: #8490aa;
+      color: #9ca3af;
     }
 
     .message {
-      margin-top: 12px;
-      padding: 11px;
-      background: #0b1220;
-      border-radius: 8px;
-      color: #b8c2d8;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .warning {
-      margin-top: 12px;
+      margin-top: 15px;
       padding: 12px;
       border-radius: 8px;
-      background: rgba(245,158,11,.1);
-      color: #fbbf24;
-      font-size: 12px;
-      line-height: 1.5;
+      background: #0b1220;
+      color: #d1d5db;
+      font-size: 13px;
     }
 
-    .safe {
-      background: rgba(34,197,94,.1);
-      color: #4ade80;
+    .performance {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
     }
 
-    .danger {
-      background: rgba(239,68,68,.1);
-      color: #f87171;
+    .performance-box {
+      background: #111827;
+      border: 1px solid #263244;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .performance-box small {
+      display: block;
+      color: #9ca3af;
+      margin-bottom: 5px;
+    }
+
+    .performance-box strong {
+      font-size: 20px;
     }
 
     .footer {
       text-align: center;
-      color: #66738e;
-      padding: 25px;
+      color: #6b7280;
+      padding: 30px 10px;
       font-size: 12px;
     }
 
-    @media (max-width: 600px) {
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 850px) {
+      .top-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
       .pairs {
         grid-template-columns: 1fr;
       }
 
-      .signal-grid,
-      .trade {
-        grid-template-columns: 1fr 1fr 1fr;
+      .performance {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 500px) {
+      .container {
+        padding: 12px;
+      }
+
+      .top-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      .card-value {
+        font-size: 16px;
+      }
+
+      .trade-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .timeframes {
+        grid-template-columns: 1fr;
+      }
+
+      .performance {
+        grid-template-columns: 1fr 1fr;
       }
     }
   </style>
@@ -252,588 +372,853 @@
 <body>
 
 <header>
-  <h1>Trading Cloud Monitor</h1>
-  <div class="subtitle">
-    12H + 1H + 5M Multi-Timeframe Trading Engine
-  </div>
+  <h1>📊 Trading Cloud Monitor</h1>
+  <p>12H + 1H + 5M Multi-Timeframe Trading Engine</p>
 </header>
 
 <div class="container">
 
-  <div class="topbar">
+  <!-- TOP STATUS -->
 
-    <div class="box">
-      <div class="label">SYSTEM</div>
-      <div id="systemStatus" class="value">
-        CONNECTING...
+  <div class="top-grid">
+
+    <div class="card">
+      <div class="card-title">SYSTEM</div>
+      <div id="systemStatus" class="card-value online">
+        ONLINE
       </div>
     </div>
 
-    <div class="box">
-      <div class="label">MARKET</div>
-      <div id="marketStatus" class="value">
-        CHECKING...
+    <div class="card">
+      <div class="card-title">MARKET</div>
+      <div id="marketStatus" class="card-value">
+        —
       </div>
     </div>
 
-    <div class="box">
-      <div class="label">TIMEFRAME</div>
-      <div id="timeframe" class="value">
+    <div class="card">
+      <div class="card-title">TIMEFRAME</div>
+      <div id="timeframe" class="card-value">
         5M
       </div>
     </div>
 
-    <div class="box">
-      <div class="label">LAST SCAN</div>
-      <div id="lastScan" class="value">
+    <div class="card">
+      <div class="card-title">LAST SCAN</div>
+      <div id="lastScan" class="card-value">
         —
       </div>
     </div>
 
   </div>
 
-  <div id="pairs" class="pairs"></div>
+  <!-- TELEGRAM ALERT CONTROL -->
 
-</div>
+  <div class="card" style="margin-bottom:20px;">
 
-<div class="footer">
-  Trading Cloud Monitor • Signals are for confirmation only
-</div>
+    <div class="alert-box">
 
-<script>
+      <div class="alert-text">
 
-const pairsContainer =
-  document.getElementById("pairs");
+        <strong>📱 Telegram Alerts</strong>
 
-const systemStatus =
-  document.getElementById("systemStatus");
-
-const marketStatus =
-  document.getElementById("marketStatus");
-
-const timeframe =
-  document.getElementById("timeframe");
-
-const lastScan =
-  document.getElementById("lastScan");
-
-
-function escapeHtml(value) {
-
-  if (value === null ||
-      value === undefined) {
-    return "";
-  }
-
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-
-function trendClass(trend) {
-
-  if (trend === "BULLISH") {
-    return "open";
-  }
-
-  if (trend === "BEARISH") {
-    return "error";
-  }
-
-  return "";
-}
-
-
-function formatTime(value) {
-
-  if (!value) {
-    return "—";
-  }
-
-  try {
-
-    return new Date(value)
-      .toLocaleTimeString();
-
-  } catch {
-
-    return value;
-  }
-}
-
-
-function renderPair(pair) {
-
-  const tf =
-    pair.timeframes || {};
-
-  const h12 =
-    tf.h12 || {};
-
-  const h1 =
-    tf.h1 || {};
-
-  const m5 =
-    tf.m5 || {};
-
-  const analysis =
-    pair.analysis || {};
-
-  const status =
-    pair.status || "WAIT";
-
-  const extended =
-    Boolean(
-      analysis.extended
-    );
-
-  let warning = "";
-
-  /*
-  IMPORTANT:
-
-  If the backend says the move is
-  extended, the dashboard clearly
-  warns the trader not to chase it.
-  */
-
-  if (extended) {
-
-    warning = `
-      <div class="warning">
-        ⚠️ MOVE EXTENDED — DO NOT CHASE THIS ENTRY.
-        Wait for a pullback and fresh 5M confirmation.
-      </div>
-    `;
-
-  } else if (
-    status === "BUY" ||
-    status === "SELL"
-  ) {
-
-    warning = `
-      <div class="warning safe">
-        ✅ MULTI-TIMEFRAME SIGNAL.
-        Wait for the 5M candle confirmation
-        before entering.
-      </div>
-    `;
-
-  } else {
-
-    warning = `
-      <div class="warning">
-        ⏳ WAIT — No valid entry confirmation yet.
-      </div>
-    `;
-  }
-
-
-  return `
-
-    <div class="card">
-
-      <div class="card-header">
-
-        <div class="symbol">
-          ${escapeHtml(pair.symbol)}
-        </div>
-
-        <div class="status ${status}">
-          ${escapeHtml(status)}
-        </div>
+        <span id="alertStatusText">
+          Checking alert status...
+        </span>
 
       </div>
 
+      <label class="switch">
 
-      <div class="price">
-        ${pair.price !== null
-          ? escapeHtml(pair.price)
-          : "—"}
-      </div>
+        <input
+          type="checkbox"
+          id="alertToggle"
+          onchange="toggleAlerts()"
+        >
 
+        <span class="slider"></span>
 
-      <div class="signal-grid">
+      </label>
 
-        <div class="signal-box">
+    </div>
 
-          <small>12H</small>
+  </div>
 
-          <strong class="${trendClass(h12.trend)}">
-            ${escapeHtml(
-              h12.trend || "UNKNOWN"
-            )}
-          </strong>
+  <!-- API STATUS -->
 
-        </div>
+  <div class="card" style="margin-bottom:20px;">
 
+    <div class="alert-box">
 
-        <div class="signal-box">
+      <div class="alert-text">
 
-          <small>1H</small>
+        <strong>🔌 Twelve Data API</strong>
 
-          <strong class="${trendClass(h1.trend)}">
-            ${escapeHtml(
-              h1.trend || "UNKNOWN"
-            )}
-          </strong>
-
-        </div>
-
-
-        <div class="signal-box">
-
-          <small>5M</small>
-
-          <strong class="${trendClass(m5.trend)}">
-            ${escapeHtml(
-              m5.trend || "UNKNOWN"
-            )}
-          </strong>
-
-        </div>
+        <span id="apiStatus">
+          Checking...
+        </span>
 
       </div>
 
-
-      <div class="trade">
-
-        <div>
-          <small>ENTRY</small>
-          <strong>
-            ${pair.entry !== null
-              ? escapeHtml(pair.entry)
-              : "—"}
-          </strong>
-        </div>
-
-        <div>
-          <small>STOP LOSS</small>
-          <strong>
-            ${pair.stopLoss !== null
-              ? escapeHtml(pair.stopLoss)
-              : "—"}
-          </strong>
-        </div>
-
-        <div>
-          <small>TAKE PROFIT</small>
-          <strong>
-            ${pair.takeProfit !== null
-              ? escapeHtml(pair.takeProfit)
-              : "—"}
-          </strong>
-        </div>
-
-      </div>
-
-
-      <div class="analysis">
-
-        <div class="analysis-row">
-          <span>Score</span>
-          <strong>
-            ${escapeHtml(pair.score)}/5
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>12H RSI</span>
-          <strong>
-            ${h12.rsi ?? "—"}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>1H RSI</span>
-          <strong>
-            ${h1.rsi ?? "—"}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>5M RSI</span>
-          <strong>
-            ${m5.rsi ?? "—"}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>SMC</span>
-          <strong>
-            ${escapeHtml(
-              analysis.location || "—"
-            )}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>Structure</span>
-          <strong>
-            ${escapeHtml(
-              analysis.structure || "—"
-            )}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>BOS</span>
-          <strong>
-            ${escapeHtml(
-              analysis.bos || "—"
-            )}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>CHoCH</span>
-          <strong>
-            ${escapeHtml(
-              analysis.choch || "—"
-            )}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>Liquidity</span>
-          <strong>
-            ${escapeHtml(
-              analysis.liquidity || "—"
-            )}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>Breakout</span>
-          <strong>
-            ${analysis.breakout
-              ? "YES"
-              : "NO"}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>Rejection</span>
-          <strong>
-            ${analysis.rejection
-              ? "YES"
-              : "NO"}
-          </strong>
-        </div>
-
-
-        <div class="analysis-row">
-          <span>Extended</span>
-          <strong class="${extended
-            ? "error"
-            : "open"}">
-            ${extended
-              ? "YES"
-              : "NO"}
-          </strong>
-        </div>
-
-      </div>
-
-
-      <div class="message">
-        ${escapeHtml(
-          pair.message ||
-          "Waiting for analysis..."
-        )}
-      </div>
-
-
-      ${warning}
-
-
-      <div style="
-        margin-top:10px;
-        color:#66738e;
-        font-size:11px;
-      ">
-        Updated:
-        ${formatTime(pair.updated)}
+      <div id="apiRequests">
+        0 requests
       </div>
 
     </div>
 
-  `;
-}
+  </div>
+
+  <!-- PAIRS -->
+
+  <div id="pairsContainer" class="pairs">
+
+    <div class="loading">
+      Loading market data...
+    </div>
+
+  </div>
+
+  <!-- PERFORMANCE -->
+
+  <h3 style="margin-top:30px;">
+    📈 Performance
+  </h3>
+
+  <div class="performance">
+
+    <div class="performance-box">
+      <small>Total Signals</small>
+      <strong id="totalSignals">0</strong>
+    </div>
+
+    <div class="performance-box">
+      <small>BUY</small>
+      <strong id="buys">0</strong>
+    </div>
+
+    <div class="performance-box">
+      <small>SELL</small>
+      <strong id="sells">0</strong>
+    </div>
+
+    <div class="performance-box">
+      <small>Wins</small>
+      <strong id="wins">0</strong>
+    </div>
+
+    <div class="performance-box">
+      <small>Losses</small>
+      <strong id="losses">0</strong>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Trading Cloud Monitor • Automated market monitoring
+  </div>
+
+</div>
 
 
-async function loadStatus() {
+<script>
 
-  try {
+  /*
+  ========================================================
+  HELPERS
+  ========================================================
+  */
 
-    const response =
-      await fetch(
-        "/api/status",
-        {
-          cache: "no-store"
-        }
-      );
+  function escapeHtml(value) {
 
-    if (!response.ok) {
-      throw new Error(
-        "Server response error"
-      );
+    if (value === null || value === undefined) {
+      return "—";
     }
 
-    const data =
-      await response.json();
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
 
-    /*
-    SYSTEM
-    */
+  function trendClass(trend) {
 
-    systemStatus.textContent =
-      data.online
-        ? "ONLINE"
-        : "OFFLINE";
+    if (!trend) {
+      return "unknown";
+    }
 
-    systemStatus.className =
-      "value " +
-      (
-        data.online
-          ? "open"
-          : "error"
-      );
+    if (
+      trend.toUpperCase()
+        .includes("BULLISH")
+    ) {
+      return "bullish";
+    }
 
+    if (
+      trend.toUpperCase()
+        .includes("BEARISH")
+    ) {
+      return "bearish";
+    }
 
-    /*
-    MARKET
-    */
+    if (
+      trend.toUpperCase()
+        .includes("NEUTRAL")
+    ) {
+      return "neutral";
+    }
 
-    marketStatus.textContent =
-      data.marketStatus ||
-      (
-        data.marketOpen
-          ? "OPEN"
-          : "CLOSED"
-      );
-
-    marketStatus.className =
-      "value " +
-      (
-        data.marketOpen
-          ? "open"
-          : "closed"
-      );
+    return "unknown";
+  }
 
 
-    /*
-    TIMEFRAME
-    */
+  function statusClass(status) {
 
-    timeframe.textContent =
-      data.timeframe ||
-      "5M";
+    if (status === "BUY") {
+      return "status-buy";
+    }
 
+    if (status === "SELL") {
+      return "status-sell";
+    }
 
-    /*
-    LAST SCAN
-    */
+    if (status === "OFFLINE") {
+      return "status-offline";
+    }
 
-    lastScan.textContent =
-      formatTime(
-        data.lastScan
-      );
-
-
-    /*
-    PAIRS
-    */
-
-    const pairs =
-      data.pairs || {};
+    return "status-wait";
+  }
 
 
-    const html =
-      Object.keys(pairs)
-        .map(
-          key =>
-            renderPair(
-              pairs[key]
-            )
-        )
-        .join("");
+  function formatTime(date) {
+
+    if (!date) {
+      return "—";
+    }
+
+    try {
+
+      return new Date(date)
+        .toLocaleString();
+
+    } catch {
+      return date;
+    }
+  }
 
 
-    pairsContainer.innerHTML =
-      html ||
-      `
-        <div class="box">
-          Waiting for pair data...
+  /*
+  ========================================================
+  RENDER PAIR
+  ========================================================
+  */
+
+  function renderPair(pair) {
+
+    const tf =
+      pair.timeframes || {};
+
+    const h12 =
+      tf.h12 || {};
+
+    const h1 =
+      tf.h1 || {};
+
+    const m5 =
+      tf.m5 || {};
+
+    const analysis =
+      pair.analysis || {};
+
+    return `
+
+      <div class="card">
+
+        <div class="pair-header">
+
+          <div class="pair-name">
+            ${escapeHtml(pair.symbol)}
+          </div>
+
+          <div class="status ${statusClass(pair.status)}">
+            ${escapeHtml(pair.status)}
+          </div>
+
         </div>
-      `;
+
+        <div class="price">
+          ${escapeHtml(pair.price)}
+        </div>
+
+        <div class="trade-grid">
+
+          <div class="trade-box">
+            <small>Entry</small>
+            <strong>
+              ${escapeHtml(pair.entry)}
+            </strong>
+          </div>
+
+          <div class="trade-box">
+            <small>Stop Loss</small>
+            <strong>
+              ${escapeHtml(pair.stopLoss)}
+            </strong>
+          </div>
+
+          <div class="trade-box">
+            <small>Take Profit</small>
+            <strong>
+              ${escapeHtml(pair.takeProfit)}
+            </strong>
+          </div>
+
+        </div>
+
+        <div>
+
+          <strong>
+            ⭐ Score:
+            ${escapeHtml(pair.score)}/5
+          </strong>
+
+        </div>
+
+        <div class="timeframes">
+
+          <div class="tf">
+
+            <div class="tf-title">
+              12H
+            </div>
+
+            <div class="tf-trend ${trendClass(h12.trend)}">
+              ${escapeHtml(h12.trend)}
+            </div>
+
+            <small>
+              RSI:
+              ${escapeHtml(h12.rsi)}
+            </small>
+
+          </div>
 
 
-  } catch (error) {
+          <div class="tf">
 
-    systemStatus.textContent =
-      "OFFLINE";
+            <div class="tf-title">
+              1H
+            </div>
 
-    systemStatus.className =
-      "value error";
+            <div class="tf-trend ${trendClass(h1.trend)}">
+              ${escapeHtml(h1.trend)}
+            </div>
 
-    pairsContainer.innerHTML = `
+            <small>
+              RSI:
+              ${escapeHtml(h1.rsi)}
+            </small>
 
-      <div class="box">
+          </div>
 
-        <strong>
-          Unable to connect to trading server.
-        </strong>
+
+          <div class="tf">
+
+            <div class="tf-title">
+              5M
+            </div>
+
+            <div class="tf-trend ${trendClass(m5.trend)}">
+              ${escapeHtml(m5.trend)}
+            </div>
+
+            <small>
+              RSI:
+              ${escapeHtml(m5.rsi)}
+            </small>
+
+          </div>
+
+        </div>
+
+
+        <div class="analysis">
+
+          <div class="analysis-row">
+            <span>Direction</span>
+            <strong>
+              ${escapeHtml(analysis.direction)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>12H SMC</span>
+            <strong>
+              ${escapeHtml(analysis.h12SMC)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>1H SMC</span>
+            <strong>
+              ${escapeHtml(analysis.h1SMC)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Structure</span>
+            <strong>
+              ${escapeHtml(analysis.structure)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>BOS</span>
+            <strong>
+              ${escapeHtml(analysis.bos)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>CHoCH</span>
+            <strong>
+              ${escapeHtml(analysis.choch)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Liquidity</span>
+            <strong>
+              ${escapeHtml(analysis.liquidity)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Location</span>
+            <strong>
+              ${escapeHtml(analysis.location)}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Breakout</span>
+            <strong>
+              ${analysis.breakout ? "YES" : "NO"}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Rejection</span>
+            <strong>
+              ${analysis.rejection ? "YES" : "NO"}
+            </strong>
+          </div>
+
+          <div class="analysis-row">
+            <span>Extended</span>
+            <strong>
+              ${analysis.extended ? "YES" : "NO"}
+            </strong>
+          </div>
+
+        </div>
+
+
+        <div class="message">
+
+          ${escapeHtml(pair.message)}
+
+        </div>
+
 
         <div style="
-          margin-top:8px;
-          color:#8e9bb8;
+          margin-top:10px;
+          color:#6b7280;
+          font-size:11px;
         ">
+
+          Updated:
           ${escapeHtml(
-            error.message
+            formatTime(pair.updated)
           )}
+
         </div>
 
       </div>
 
     `;
   }
-}
 
 
-/*
-Initial load
-*/
+  /*
+  ========================================================
+  LOAD STATUS
+  ========================================================
+  */
 
-loadStatus();
+  async function loadStatus() {
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/status",
+          {
+            cache: "no-store"
+          }
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          "Status request failed"
+        );
+      }
+
+      const data =
+        await response.json();
 
 
-/*
-Refresh dashboard every 15 seconds.
+      /*
+      SYSTEM
+      */
 
-This does NOT request Twelve Data.
-It only reads /api/status.
-*/
+      const system =
+        document.getElementById(
+          "systemStatus"
+        );
 
-setInterval(
-  loadStatus,
-  15000
-);
+      if (data.online) {
+
+        system.textContent =
+          "ONLINE";
+
+        system.className =
+          "card-value online";
+
+      } else {
+
+        system.textContent =
+          "OFFLINE";
+
+        system.className =
+          "card-value offline";
+
+      }
+
+
+      /*
+      MARKET
+      */
+
+      const market =
+        document.getElementById(
+          "marketStatus"
+        );
+
+      market.textContent =
+        data.marketStatus || "—";
+
+      market.className =
+        "card-value " +
+        (
+          data.marketOpen
+            ? "open"
+            : "closed"
+        );
+
+
+      /*
+      TIMEFRAME
+      */
+
+      document.getElementById(
+        "timeframe"
+      ).textContent =
+        data.timeframe || "5min";
+
+
+      /*
+      LAST SCAN
+      */
+
+      document.getElementById(
+        "lastScan"
+      ).textContent =
+        formatTime(
+          data.lastScan
+        );
+
+
+      /*
+      API
+      */
+
+      const api =
+        data.api || {};
+
+      document.getElementById(
+        "apiStatus"
+      ).textContent =
+        api.status || "UNKNOWN";
+
+      document.getElementById(
+        "apiRequests"
+      ).textContent =
+        `${api.totalRequests || 0} requests`;
+
+
+      /*
+      ALERT TOGGLE
+      */
+
+      const toggle =
+        document.getElementById(
+          "alertToggle"
+        );
+
+      toggle.checked =
+        Boolean(data.alerts);
+
+      updateAlertText(
+        Boolean(data.alerts)
+      );
+
+
+      /*
+      PAIRS
+      */
+
+      const container =
+        document.getElementById(
+          "pairsContainer"
+        );
+
+      const pairs =
+        data.pairs || {};
+
+      const names =
+        Object.keys(pairs);
+
+      if (!names.length) {
+
+        container.innerHTML =
+          `<div class="loading">
+             No pair data available.
+           </div>`;
+
+      } else {
+
+        container.innerHTML =
+          names
+            .map(
+              name =>
+                renderPair(
+                  pairs[name]
+                )
+            )
+            .join("");
+
+      }
+
+
+      /*
+      PERFORMANCE
+      */
+
+      const performance =
+        data.performance || {};
+
+      document.getElementById(
+        "totalSignals"
+      ).textContent =
+        performance.totalSignals || 0;
+
+      document.getElementById(
+        "buys"
+      ).textContent =
+        performance.buys || 0;
+
+      document.getElementById(
+        "sells"
+      ).textContent =
+        performance.sells || 0;
+
+      document.getElementById(
+        "wins"
+      ).textContent =
+        performance.wins || 0;
+
+      document.getElementById(
+        "losses"
+      ).textContent =
+        performance.losses || 0;
+
+
+    } catch (error) {
+
+      console.error(
+        "Dashboard error:",
+        error
+      );
+
+      document.getElementById(
+        "systemStatus"
+      ).textContent =
+        "CONNECTION ERROR";
+
+      document.getElementById(
+        "systemStatus"
+      ).className =
+        "card-value offline";
+
+    }
+
+  }
+
+
+  /*
+  ========================================================
+  ALERT TEXT
+  ========================================================
+  */
+
+  function updateAlertText(enabled) {
+
+    const text =
+      document.getElementById(
+        "alertStatusText"
+      );
+
+    if (enabled) {
+
+      text.textContent =
+        "Telegram alerts are ON — new BUY/SELL signals can be sent.";
+
+    } else {
+
+      text.textContent =
+        "Telegram alerts are OFF — no Telegram signal will be sent.";
+
+    }
+
+  }
+
+
+  /*
+  ========================================================
+  TOGGLE TELEGRAM ALERTS
+  ========================================================
+  */
+
+  async function toggleAlerts() {
+
+    const toggle =
+      document.getElementById(
+        "alertToggle"
+      );
+
+    const enabled =
+      toggle.checked;
+
+
+    /*
+    Disable immediately in UI
+    */
+
+    updateAlertText(
+      enabled
+    );
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/alerts",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                enabled
+              })
+          }
+        );
+
+
+      if (!response.ok) {
+        throw new Error(
+          "Unable to update alerts"
+        );
+      }
+
+
+      const data =
+        await response.json();
+
+
+      toggle.checked =
+        Boolean(data.enabled);
+
+      updateAlertText(
+        Boolean(data.enabled)
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Alert toggle error:",
+        error
+      );
+
+      /*
+      Revert switch if server
+      could not be updated.
+      */
+
+      toggle.checked =
+        !enabled;
+
+      updateAlertText(
+        !enabled
+      );
+
+      alert(
+        "Could not change Telegram alert setting."
+      );
+
+    }
+
+  }
+
+
+  /*
+  ========================================================
+  INITIAL LOAD
+  ========================================================
+  */
+
+  loadStatus();
+
+
+  /*
+  ========================================================
+  AUTO REFRESH
+  ========================================================
+  */
+
+  setInterval(
+    loadStatus,
+    10000
+  );
 
 </script>
 
