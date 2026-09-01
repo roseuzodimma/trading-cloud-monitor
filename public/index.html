@@ -1,7 +1,12 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>Trading Cloud Monitor</title>  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Trading Cloud Monitor</title>
+
+  <style>
     * {
       box-sizing: border-box;
     }
@@ -9,346 +14,315 @@
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #0b1120;
-      color: #f8fafc;
+      background: #0b1220;
+      color: #ffffff;
     }
 
     header {
       padding: 20px;
-      background: #111827;
-      border-bottom: 1px solid #243044;
-      text-align: center;
+      background: #111a2e;
+      border-bottom: 1px solid #26324d;
     }
 
-    header h1 {
+    h1 {
       margin: 0 0 8px;
       font-size: 24px;
     }
 
-    header p {
-      margin: 0;
-      color: #94a3b8;
-      font-size: 13px;
+    .subtitle {
+      color: #9ca9c7;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 20px;
     }
 
     .topbar {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
-      padding: 15px;
-      max-width: 1400px;
-      margin: auto;
+      margin-bottom: 20px;
     }
 
-    .stat {
-      background: #111827;
-      border: 1px solid #243044;
+    .box {
+      background: #111a2e;
+      border: 1px solid #26324d;
       border-radius: 12px;
-      padding: 15px;
+      padding: 16px;
     }
 
-    .stat-title {
+    .label {
+      color: #8e9bb8;
       font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 7px;
+      margin-bottom: 6px;
     }
 
-    .stat-value {
+    .value {
       font-size: 18px;
       font-weight: bold;
     }
 
-    .dashboard {
-      max-width: 1400px;
-      margin: auto;
-      padding: 0 15px 30px;
+    .open {
+      color: #22c55e;
     }
 
-    .pair-card {
-      background: #111827;
-      border: 1px solid #243044;
+    .closed {
+      color: #f59e0b;
+    }
+
+    .error {
+      color: #ef4444;
+    }
+
+    .pairs {
+      display: grid;
+      grid-template-columns:
+        repeat(auto-fit, minmax(330px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: #111a2e;
+      border: 1px solid #26324d;
       border-radius: 14px;
-      margin-top: 15px;
-      overflow: hidden;
+      padding: 18px;
     }
 
-    .pair-header {
-      padding: 18px;
+    .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #243044;
+      margin-bottom: 15px;
     }
 
-    .pair-name {
-      font-size: 22px;
+    .symbol {
+      font-size: 21px;
       font-weight: bold;
     }
 
     .status {
-      padding: 7px 14px;
+      padding: 7px 12px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: bold;
     }
 
-    .status-buy {
-      background: #064e3b;
-      color: #6ee7b7;
+    .BUY {
+      background: rgba(34,197,94,.15);
+      color: #22c55e;
     }
 
-    .status-sell {
-      background: #7f1d1d;
-      color: #fca5a5;
+    .SELL {
+      background: rgba(239,68,68,.15);
+      color: #ef4444;
     }
 
-    .status-wait {
-      background: #334155;
-      color: #cbd5e1;
-    }
-
-    .status-offline {
-      background: #451a03;
-      color: #fdba74;
-    }
-
-    .price-box {
-      padding: 18px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-    }
-
-    .price-item {
-      background: #0b1120;
-      padding: 13px;
-      border-radius: 10px;
-    }
-
-    .price-label {
+    .WAIT {
+      background: rgba(148,163,184,.15);
       color: #94a3b8;
-      font-size: 11px;
-      margin-bottom: 6px;
     }
 
-    .price-value {
-      font-size: 17px;
+    .OFFLINE {
+      background: rgba(239,68,68,.15);
+      color: #ef4444;
+    }
+
+    .price {
+      font-size: 28px;
       font-weight: bold;
+      margin-bottom: 15px;
     }
 
-    .green {
-      color: #34d399;
-    }
-
-    .red {
-      color: #f87171;
-    }
-
-    .yellow {
-      color: #fbbf24;
-    }
-
-    .blue {
-      color: #60a5fa;
-    }
-
-    .section {
-      padding: 18px;
-      border-top: 1px solid #243044;
-    }
-
-    .section-title {
-      font-size: 14px;
-      font-weight: bold;
-      margin-bottom: 12px;
-      color: #e2e8f0;
-    }
-
-    .timeframes {
+    .signal-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      grid-template-columns:
+        repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 15px;
     }
 
-    .tf {
-      background: #0b1120;
-      border-radius: 10px;
-      padding: 14px;
+    .signal-box {
+      background: #0b1220;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
     }
 
-    .tf-name {
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #cbd5e1;
-    }
-
-    .tf-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 5px 0;
-      font-size: 13px;
-    }
-
-    .analysis-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-    }
-
-    .analysis-item {
-      background: #0b1120;
-      padding: 12px;
-      border-radius: 10px;
-    }
-
-    .analysis-label {
-      color: #94a3b8;
-      font-size: 11px;
+    .signal-box small {
+      display: block;
+      color: #7f8ba5;
       margin-bottom: 5px;
     }
 
-    .analysis-value {
+    .signal-box strong {
       font-size: 13px;
-      font-weight: bold;
+    }
+
+    .trade {
+      display: grid;
+      grid-template-columns:
+        repeat(3, 1fr);
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .trade div {
+      background: #0b1220;
+      padding: 12px 8px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .trade small {
+      display: block;
+      color: #7f8ba5;
+      margin-bottom: 5px;
+    }
+
+    .analysis {
+      border-top: 1px solid #26324d;
+      padding-top: 14px;
+    }
+
+    .analysis-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .analysis-row span:first-child {
+      color: #8490aa;
     }
 
     .message {
-      padding: 15px 18px;
-      color: #cbd5e1;
+      margin-top: 12px;
+      padding: 11px;
+      background: #0b1220;
+      border-radius: 8px;
+      color: #b8c2d8;
       font-size: 13px;
-      border-top: 1px solid #243044;
+      line-height: 1.5;
     }
 
-    .score {
-      font-size: 20px;
-      font-weight: bold;
+    .warning {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(245,158,11,.1);
+      color: #fbbf24;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .safe {
+      background: rgba(34,197,94,.1);
+      color: #4ade80;
+    }
+
+    .danger {
+      background: rgba(239,68,68,.1);
+      color: #f87171;
     }
 
     .footer {
       text-align: center;
-      padding: 20px;
-      color: #64748b;
+      color: #66738e;
+      padding: 25px;
       font-size: 12px;
     }
 
-    .alert-control {
-      max-width: 1400px;
-      margin: 15px auto 0;
-      padding: 0 15px;
-    }
-
-    .alert-box {
-      background: #111827;
-      border: 1px solid #243044;
-      border-radius: 12px;
-      padding: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .toggle {
-      padding: 9px 16px;
-      border: 0;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .toggle-on {
-      background: #065f46;
-      color: white;
-    }
-
-    .toggle-off {
-      background: #7f1d1d;
-      color: white;
-    }
-
-    .error {
-      color: #f87171;
-    }
-
-    @media (max-width: 900px) {
-      .topbar {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .price-box {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .analysis-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
     @media (max-width: 600px) {
-      header h1 {
-        font-size: 20px;
-      }
-
-      .topbar {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .price-box {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .timeframes {
+      .pairs {
         grid-template-columns: 1fr;
       }
 
-      .analysis-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .pair-name {
-        font-size: 18px;
+      .signal-grid,
+      .trade {
+        grid-template-columns: 1fr 1fr 1fr;
       }
     }
-  </style></head><body><header>
-  <h1>📊 Trading Cloud Monitor</h1>
-  <p>12H + 1H + 5M • SMC • RSI • Breakout • Rejection</p>
-</header><div class="topbar">  <div class="stat">
-    <div class="stat-title">SYSTEM</div>
-    <div id="systemStatus" class="stat-value">Loading...</div>
-  </div>  <div class="stat">
-    <div class="stat-title">MARKET</div>
-    <div id="marketStatus" class="stat-value">Loading...</div>
-  </div>  <div class="stat">
-    <div class="stat-title">LAST SCAN</div>
-    <div id="lastScan" class="stat-value">—</div>
-  </div>  <div class="stat">
-    <div class="stat-title">API</div>
-    <div id="apiStatus" class="stat-value">Loading...</div>
-  </div></div><div class="alert-control">  <div class="alert-box"><div>
-  <strong>🔔 Telegram Alerts</strong>
-  <div id="alertText" style="font-size:12px;color:#94a3b8;margin-top:5px;">
-    Checking...
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Trading Cloud Monitor</h1>
+  <div class="subtitle">
+    12H + 1H + 5M Multi-Timeframe Trading Engine
   </div>
+</header>
+
+<div class="container">
+
+  <div class="topbar">
+
+    <div class="box">
+      <div class="label">SYSTEM</div>
+      <div id="systemStatus" class="value">
+        CONNECTING...
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">MARKET</div>
+      <div id="marketStatus" class="value">
+        CHECKING...
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">TIMEFRAME</div>
+      <div id="timeframe" class="value">
+        5M
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="label">LAST SCAN</div>
+      <div id="lastScan" class="value">
+        —
+      </div>
+    </div>
+
+  </div>
+
+  <div id="pairs" class="pairs"></div>
+
 </div>
 
-<button
-  id="alertButton"
-  class="toggle"
-  onclick="toggleAlerts()">
-  Loading...
-</button>
+<div class="footer">
+  Trading Cloud Monitor • Signals are for confirmation only
+</div>
 
-  </div></div><main id="dashboard" class="dashboard">  <div style="text-align:center;padding:40px;color:#94a3b8;">
-    Loading market data...
-  </div></main><div class="footer">
-  Trading Cloud Monitor • Automatic market monitoring
-</div><script>
+<script>
 
-let currentAlerts = true;
+const pairsContainer =
+  document.getElementById("pairs");
+
+const systemStatus =
+  document.getElementById("systemStatus");
+
+const marketStatus =
+  document.getElementById("marketStatus");
+
+const timeframe =
+  document.getElementById("timeframe");
+
+const lastScan =
+  document.getElementById("lastScan");
+
 
 function escapeHtml(value) {
 
-  if (value === null || value === undefined) {
-    return "—";
+  if (value === null ||
+      value === undefined) {
+    return "";
   }
 
   return String(value)
@@ -359,35 +333,20 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-function statusClass(status) {
-
-  if (status === "BUY") {
-    return "status-buy";
-  }
-
-  if (status === "SELL") {
-    return "status-sell";
-  }
-
-  if (status === "OFFLINE") {
-    return "status-offline";
-  }
-
-  return "status-wait";
-}
 
 function trendClass(trend) {
 
   if (trend === "BULLISH") {
-    return "green";
+    return "open";
   }
 
   if (trend === "BEARISH") {
-    return "red";
+    return "error";
   }
 
-  return "yellow";
+  return "";
 }
+
 
 function formatTime(value) {
 
@@ -398,46 +357,28 @@ function formatTime(value) {
   try {
 
     return new Date(value)
-      .toLocaleString();
+      .toLocaleTimeString();
 
-  } catch (e) {
+  } catch {
 
     return value;
   }
 }
 
-function valueOrDash(value) {
-
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
-    return "—";
-  }
-
-  return escapeHtml(value);
-}
 
 function renderPair(pair) {
 
+  const tf =
+    pair.timeframes || {};
+
   const h12 =
-    pair.timeframes &&
-    pair.timeframes.h12
-      ? pair.timeframes.h12
-      : {};
+    tf.h12 || {};
 
   const h1 =
-    pair.timeframes &&
-    pair.timeframes.h1
-      ? pair.timeframes.h1
-      : {};
+    tf.h1 || {};
 
   const m5 =
-    pair.timeframes &&
-    pair.timeframes.m5
-      ? pair.timeframes.m5
-      : {};
+    tf.m5 || {};
 
   const analysis =
     pair.analysis || {};
@@ -445,366 +386,288 @@ function renderPair(pair) {
   const status =
     pair.status || "WAIT";
 
+  const extended =
+    Boolean(
+      analysis.extended
+    );
+
+  let warning = "";
+
+  /*
+  IMPORTANT:
+
+  If the backend says the move is
+  extended, the dashboard clearly
+  warns the trader not to chase it.
+  */
+
+  if (extended) {
+
+    warning = `
+      <div class="warning">
+        ⚠️ MOVE EXTENDED — DO NOT CHASE THIS ENTRY.
+        Wait for a pullback and fresh 5M confirmation.
+      </div>
+    `;
+
+  } else if (
+    status === "BUY" ||
+    status === "SELL"
+  ) {
+
+    warning = `
+      <div class="warning safe">
+        ✅ MULTI-TIMEFRAME SIGNAL.
+        Wait for the 5M candle confirmation
+        before entering.
+      </div>
+    `;
+
+  } else {
+
+    warning = `
+      <div class="warning">
+        ⏳ WAIT — No valid entry confirmation yet.
+      </div>
+    `;
+  }
+
+
   return `
 
-    <div class="pair-card">
+    <div class="card">
 
-      <div class="pair-header">
+      <div class="card-header">
 
-        <div>
-
-          <div class="pair-name">
-            ${escapeHtml(pair.symbol)}
-          </div>
-
-          <div style="font-size:12px;color:#64748b;margin-top:4px;">
-            Updated:
-            ${formatTime(pair.updated)}
-          </div>
-
+        <div class="symbol">
+          ${escapeHtml(pair.symbol)}
         </div>
 
-        <div class="status ${statusClass(status)}">
+        <div class="status ${status}">
           ${escapeHtml(status)}
         </div>
 
       </div>
 
 
-      <div class="price-box">
-
-        <div class="price-item">
-
-          <div class="price-label">
-            CURRENT PRICE
-          </div>
-
-          <div class="price-value blue">
-            ${valueOrDash(pair.price)}
-          </div>
-
-        </div>
-
-
-        <div class="price-item">
-
-          <div class="price-label">
-            ENTRY
-          </div>
-
-          <div class="price-value">
-            ${valueOrDash(pair.entry)}
-          </div>
-
-        </div>
-
-
-        <div class="price-item">
-
-          <div class="price-label">
-            STOP LOSS
-          </div>
-
-          <div class="price-value red">
-            ${valueOrDash(pair.stopLoss)}
-          </div>
-
-        </div>
-
-
-        <div class="price-item">
-
-          <div class="price-label">
-            TAKE PROFIT
-          </div>
-
-          <div class="price-value green">
-            ${valueOrDash(pair.takeProfit)}
-          </div>
-
-        </div>
-
-
+      <div class="price">
+        ${pair.price !== null
+          ? escapeHtml(pair.price)
+          : "—"}
       </div>
 
 
-      <div class="section">
+      <div class="signal-grid">
 
-        <div class="section-title">
-          SIGNAL QUALITY
+        <div class="signal-box">
+
+          <small>12H</small>
+
+          <strong class="${trendClass(h12.trend)}">
+            ${escapeHtml(
+              h12.trend || "UNKNOWN"
+            )}
+          </strong>
+
         </div>
 
-        <div style="display:flex;align-items:center;gap:15px;">
 
-          <div class="score">
-            ⭐ ${valueOrDash(pair.score)}/5
-          </div>
+        <div class="signal-box">
 
-          <div style="color:#94a3b8;font-size:13px;">
-            ${escapeHtml(pair.message || "—")}
-          </div>
+          <small>1H</small>
+
+          <strong class="${trendClass(h1.trend)}">
+            ${escapeHtml(
+              h1.trend || "UNKNOWN"
+            )}
+          </strong>
+
+        </div>
+
+
+        <div class="signal-box">
+
+          <small>5M</small>
+
+          <strong class="${trendClass(m5.trend)}">
+            ${escapeHtml(
+              m5.trend || "UNKNOWN"
+            )}
+          </strong>
 
         </div>
 
       </div>
 
 
-      <div class="section">
+      <div class="trade">
 
-        <div class="section-title">
-          MULTI-TIMEFRAME CONFIRMATION
+        <div>
+          <small>ENTRY</small>
+          <strong>
+            ${pair.entry !== null
+              ? escapeHtml(pair.entry)
+              : "—"}
+          </strong>
         </div>
 
-        <div class="timeframes">
+        <div>
+          <small>STOP LOSS</small>
+          <strong>
+            ${pair.stopLoss !== null
+              ? escapeHtml(pair.stopLoss)
+              : "—"}
+          </strong>
+        </div>
 
-
-          <div class="tf">
-
-            <div class="tf-name">
-              📊 12H
-            </div>
-
-            <div class="tf-row">
-              <span>Trend</span>
-              <strong class="${trendClass(h12.trend)}">
-                ${valueOrDash(h12.trend)}
-              </strong>
-            </div>
-
-            <div class="tf-row">
-              <span>RSI</span>
-              <strong>
-                ${valueOrDash(h12.rsi)}
-              </strong>
-            </div>
-
-            <div class="tf-row">
-              <span>Previous</span>
-              <strong class="${trendClass(h12.previous)}">
-                ${valueOrDash(h12.previous)}
-              </strong>
-            </div>
-
-            <div class="tf-row">
-              <span>Current</span>
-              <strong class="${trendClass(h12.current)}">
-                ${valueOrDash(h12.current)}
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div class="tf">
-
-            <div class="tf-name">
-              📊 1H
-            </div>
-
-            <div class="tf-row">
-              <span>Trend</span>
-              <strong class="${trendClass(h1.trend)}">
-                ${valueOrDash(h1.trend)}
-              </strong>
-            </div>
-
-            <div class="tf-row">
-              <span>RSI</span>
-              <strong>
-                ${valueOrDash(h1.rsi)}
-              </strong>
-            </div>
-
-          </div>
-
-
-          <div class="tf">
-
-            <div class="tf-name">
-              📊 5M
-            </div>
-
-            <div class="tf-row">
-              <span>Trend</span>
-              <strong class="${trendClass(m5.trend)}">
-                ${valueOrDash(m5.trend)}
-              </strong>
-            </div>
-
-            <div class="tf-row">
-              <span>RSI</span>
-              <strong>
-                ${valueOrDash(m5.rsi)}
-              </strong>
-            </div>
-
-          </div>
-
-
+        <div>
+          <small>TAKE PROFIT</small>
+          <strong>
+            ${pair.takeProfit !== null
+              ? escapeHtml(pair.takeProfit)
+              : "—"}
+          </strong>
         </div>
 
       </div>
 
 
-      <div class="section">
+      <div class="analysis">
 
-        <div class="section-title">
-          🔎 SMART MONEY CONCEPT / STRUCTURE
+        <div class="analysis-row">
+          <span>Score</span>
+          <strong>
+            ${escapeHtml(pair.score)}/5
+          </strong>
         </div>
 
-        <div class="analysis-grid">
+
+        <div class="analysis-row">
+          <span>12H RSI</span>
+          <strong>
+            ${h12.rsi ?? "—"}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              12H SMC
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.h12SMC)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>1H RSI</span>
+          <strong>
+            ${h1.rsi ?? "—"}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              1H SMC
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.h1SMC)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>5M RSI</span>
+          <strong>
+            ${m5.rsi ?? "—"}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              5M STRUCTURE
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.structure)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>SMC</span>
+          <strong>
+            ${escapeHtml(
+              analysis.location || "—"
+            )}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              LOCATION
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.location)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>Structure</span>
+          <strong>
+            ${escapeHtml(
+              analysis.structure || "—"
+            )}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              BOS
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.bos)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>BOS</span>
+          <strong>
+            ${escapeHtml(
+              analysis.bos || "—"
+            )}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              CHoCH
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.choch)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>CHoCH</span>
+          <strong>
+            ${escapeHtml(
+              analysis.choch || "—"
+            )}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              LIQUIDITY
-            </div>
-
-            <div class="analysis-value">
-              ${valueOrDash(analysis.liquidity)}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>Liquidity</span>
+          <strong>
+            ${escapeHtml(
+              analysis.liquidity || "—"
+            )}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              BREAKOUT
-            </div>
-
-            <div class="analysis-value">
-              ${analysis.breakout ? "YES" : "NO"}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>Breakout</span>
+          <strong>
+            ${analysis.breakout
+              ? "YES"
+              : "NO"}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              REJECTION
-            </div>
-
-            <div class="analysis-value">
-              ${analysis.rejection ? "YES" : "NO"}
-            </div>
-
-          </div>
+        <div class="analysis-row">
+          <span>Rejection</span>
+          <strong>
+            ${analysis.rejection
+              ? "YES"
+              : "NO"}
+          </strong>
+        </div>
 
 
-          <div class="analysis-item">
-
-            <div class="analysis-label">
-              EXTENDED
-            </div>
-
-            <div class="analysis-value">
-              ${analysis.extended ? "YES" : "NO"}
-            </div>
-
-          </div>
-
-
+        <div class="analysis-row">
+          <span>Extended</span>
+          <strong class="${extended
+            ? "error"
+            : "open"}">
+            ${extended
+              ? "YES"
+              : "NO"}
+          </strong>
         </div>
 
       </div>
 
 
       <div class="message">
+        ${escapeHtml(
+          pair.message ||
+          "Waiting for analysis..."
+        )}
+      </div>
 
-        <strong>Engine:</strong>
-        12H + 1H + 5M
 
-        &nbsp; | &nbsp;
+      ${warning}
 
-        <strong>Entry TF:</strong>
-        5M
 
-        &nbsp; | &nbsp;
-
-        <strong>R:R:</strong>
-        1:2
-
+      <div style="
+        margin-top:10px;
+        color:#66738e;
+        font-size:11px;
+      ">
+        Updated:
+        ${formatTime(pair.updated)}
       </div>
 
     </div>
@@ -812,7 +675,8 @@ function renderPair(pair) {
   `;
 }
 
-async function loadDashboard() {
+
+async function loadStatus() {
 
   try {
 
@@ -826,8 +690,7 @@ async function loadDashboard() {
 
     if (!response.ok) {
       throw new Error(
-        "Server returned HTTP " +
-        response.status
+        "Server response error"
       );
     }
 
@@ -839,163 +702,111 @@ async function loadDashboard() {
     SYSTEM
     */
 
-    const systemStatus =
-      document.getElementById(
-        "systemStatus"
-      );
-
     systemStatus.textContent =
       data.online
-        ? "🟢 ONLINE"
-        : "🔴 OFFLINE";
+        ? "ONLINE"
+        : "OFFLINE";
+
+    systemStatus.className =
+      "value " +
+      (
+        data.online
+          ? "open"
+          : "error"
+      );
 
 
     /*
     MARKET
     */
 
-    const marketStatus =
-      document.getElementById(
-        "marketStatus"
+    marketStatus.textContent =
+      data.marketStatus ||
+      (
+        data.marketOpen
+          ? "OPEN"
+          : "CLOSED"
       );
 
-    marketStatus.textContent =
-      data.marketOpen
-        ? "🟢 OPEN"
-        : "🔴 CLOSED";
+    marketStatus.className =
+      "value " +
+      (
+        data.marketOpen
+          ? "open"
+          : "closed"
+      );
+
+
+    /*
+    TIMEFRAME
+    */
+
+    timeframe.textContent =
+      data.timeframe ||
+      "5M";
 
 
     /*
     LAST SCAN
     */
 
-    document.getElementById(
-      "lastScan"
-    ).textContent =
+    lastScan.textContent =
       formatTime(
         data.lastScan
       );
 
 
     /*
-    API
-    */
-
-    const apiStatus =
-      document.getElementById(
-        "apiStatus"
-      );
-
-    if (
-      data.api &&
-      data.api.status ===
-        "CONFIGURED"
-    ) {
-
-      apiStatus.textContent =
-        "🟢 CONFIGURED";
-
-    } else {
-
-      apiStatus.textContent =
-        "🔴 MISSING";
-
-    }
-
-
-    /*
-    ALERTS
-    */
-
-    currentAlerts =
-      Boolean(
-        data.alerts
-      );
-
-    updateAlertButton();
-
-
-    /*
     PAIRS
     */
-
-    const dashboard =
-      document.getElementById(
-        "dashboard"
-      );
 
     const pairs =
       data.pairs || {};
 
 
-    const pairNames =
-      Object.keys(pairs);
-
-
-    if (!pairNames.length) {
-
-      dashboard.innerHTML = `
-        <div style="
-          text-align:center;
-          padding:40px;
-          color:#94a3b8;
-        ">
-          No pairs available.
-        </div>
-      `;
-
-      return;
-    }
-
-
-    dashboard.innerHTML =
-      pairNames
+    const html =
+      Object.keys(pairs)
         .map(
-          name =>
+          key =>
             renderPair(
-              pairs[name]
+              pairs[key]
             )
         )
         .join("");
 
 
+    pairsContainer.innerHTML =
+      html ||
+      `
+        <div class="box">
+          Waiting for pair data...
+        </div>
+      `;
+
+
   } catch (error) {
 
-    console.error(
-      error
-    );
+    systemStatus.textContent =
+      "OFFLINE";
 
-    document.getElementById(
-      "systemStatus"
-    ).textContent =
-      "🔴 ERROR";
+    systemStatus.className =
+      "value error";
 
-    document.getElementById(
-      "dashboard"
-    ).innerHTML = `
+    pairsContainer.innerHTML = `
 
-      <div style="
-        background:#111827;
-        border:1px solid #7f1d1d;
-        border-radius:12px;
-        padding:25px;
-        margin-top:15px;
-        text-align:center;
-      ">
+      <div class="box">
+
+        <strong>
+          Unable to connect to trading server.
+        </strong>
 
         <div style="
-          color:#f87171;
-          font-weight:bold;
-          margin-bottom:8px;
+          margin-top:8px;
+          color:#8e9bb8;
         ">
-          Unable to connect to server
-        </div>
-
-        <div style="
-          color:#94a3b8;
-          font-size:13px;
-        ">
-          ${escapeHtml(error.message)}
+          ${escapeHtml(
+            error.message
+          )}
         </div>
 
       </div>
@@ -1005,97 +816,12 @@ async function loadDashboard() {
 }
 
 
-function updateAlertButton() {
-
-  const button =
-    document.getElementById(
-      "alertButton"
-    );
-
-  const text =
-    document.getElementById(
-      "alertText"
-    );
-
-  if (currentAlerts) {
-
-    button.textContent =
-      "🔔 ON";
-
-    button.className =
-      "toggle toggle-on";
-
-    text.textContent =
-      "Telegram signal alerts are enabled.";
-
-  } else {
-
-    button.textContent =
-      "🔕 OFF";
-
-    button.className =
-      "toggle toggle-off";
-
-    text.textContent =
-      "Telegram signal alerts are disabled.";
-
-  }
-}
-
-
-async function toggleAlerts() {
-
-  const newValue =
-    !currentAlerts;
-
-  try {
-
-    const response =
-      await fetch(
-        "/api/alerts",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify({
-              enabled:
-                newValue
-            })
-        }
-      );
-
-    const data =
-      await response.json();
-
-    currentAlerts =
-      Boolean(
-        data.enabled
-      );
-
-    updateAlertButton();
-
-  } catch (error) {
-
-    alert(
-      "Unable to change alert setting."
-    );
-
-  }
-}
-
-
 /*
-=========================================================
-AUTO REFRESH
-=========================================================
+Initial load
 */
 
-loadDashboard();
+loadStatus();
+
 
 /*
 Refresh dashboard every 15 seconds.
@@ -1105,9 +831,11 @@ It only reads /api/status.
 */
 
 setInterval(
-  loadDashboard,
+  loadStatus,
   15000
 );
 
-</script></body>
+</script>
+
+</body>
 </html>
