@@ -20,6 +20,10 @@ TRADING SETTINGS
 
 const TIMEFRAME = "5min";
 
+/*
+Minimum 5 minutes between scans.
+*/
+
 const POLL_MS = Math.max(
   300000,
   Number(process.env.POLL_MS || 300000)
@@ -27,7 +31,7 @@ const POLL_MS = Math.max(
 
 /*
 =========================================================
-ONLY 2 PAIRS
+PAIRS
 =========================================================
 */
 
@@ -38,11 +42,40 @@ const PAIRS = [
 
 /*
 =========================================================
-CACHE
+CACHE SETTINGS
 =========================================================
 */
 
-const H1_REFRESH_MS = 60 * 60 * 1000;
+/*
+1H data is only refreshed once per hour.
+
+This means:
+
+2 pairs = normally only 2 x 1H requests/hour
+
+5M data is refreshed every scan:
+
+2 pairs = 2 x 5M requests/5 minutes
+*/
+
+const H1_REFRESH_MS =
+  60 * 60 * 1000;
+
+/*
+=========================================================
+API RATE LIMIT PROTECTION
+=========================================================
+*/
+
+const API_COOLDOWN_MS =
+  60 * 1000;
+
+/*
+Small delay between requests.
+*/
+
+const REQUEST_DELAY_MS =
+  1200;
 
 /*
 =========================================================
@@ -101,7 +134,7 @@ for (const pair of PAIRS) {
 
 /*
 =========================================================
-INITIAL PAIR STATE
+PAIR INITIAL STATE
 =========================================================
 */
 
@@ -113,7 +146,8 @@ for (const pair of PAIRS) {
 
     score: 0,
 
-    message: "Waiting for market data...",
+    message:
+      "Waiting for market data...",
 
     price: null,
 
@@ -131,7 +165,8 @@ for (const pair of PAIRS) {
         rsi: null,
         previous: "UNKNOWN",
         current: "UNKNOWN",
-        previousCandle: null
+        previousCandle: null,
+        currentCandle: null
       },
 
       h1: {
@@ -180,13 +215,17 @@ MARKET HOURS
 function isMarketOpen() {
   const now = new Date();
 
-  const day = now.getUTCDay();
+  const day =
+    now.getUTCDay();
 
-  const hour = now.getUTCHours();
+  const hour =
+    now.getUTCHours();
 
-  const minute = now.getUTCMinutes();
+  const minute =
+    now.getUTCMinutes();
 
-  const minutes = hour * 60 + minute;
+  const minutes =
+    hour * 60 + minute;
 
   /*
   Saturday
@@ -228,8 +267,8 @@ HELPERS
 */
 
 function sleep(ms) {
-  return new Promise(resolve =>
-    setTimeout(resolve, ms)
+  return new Promise(
+    resolve => setTimeout(resolve, ms)
   );
 }
 
@@ -243,7 +282,9 @@ function num(value) {
 
 function average(values) {
   const clean =
-    values.filter(Number.isFinite);
+    values.filter(
+      Number.isFinite
+    );
 
   if (!clean.length) {
     return null;
@@ -257,18 +298,27 @@ function average(values) {
   );
 }
 
-function roundPrice(value, pair) {
-  if (!Number.isFinite(value)) {
+function roundPrice(
+  value,
+  pair
+) {
+  if (
+    !Number.isFinite(value)
+  ) {
     return null;
   }
 
   let decimals = 5;
 
-  if (pair === "XAU/USD") {
+  if (
+    pair === "XAU/USD"
+  ) {
     decimals = 2;
   }
 
-  if (pair.includes("JPY")) {
+  if (
+    pair.includes("JPY")
+  ) {
     decimals = 3;
   }
 
@@ -294,6 +344,10 @@ async function twelveData(
     );
   }
 
+  /*
+  Global cooldown
+  */
+
   if (
     state.api.cooldownUntil &&
     Date.now() <
@@ -317,17 +371,20 @@ async function twelveData(
     await fetch(url);
 
   const data =
-    await response.json().catch(
-      () => null
-    );
+    await response
+      .json()
+      .catch(() => null);
 
   /*
   RATE LIMIT
   */
 
-  if (response.status === 429) {
+  if (
+    response.status === 429
+  ) {
     state.api.cooldownUntil =
-      Date.now() + 60000;
+      Date.now() +
+      API_COOLDOWN_MS;
 
     throw new Error(
       "Twelve Data HTTP 429 - rate limit exceeded"
@@ -362,7 +419,9 @@ async function twelveData(
   return data.values
     .map(candle => ({
       datetime:
-        new Date(candle.datetime),
+        new Date(
+          candle.datetime
+        ),
 
       open:
         num(candle.open),
@@ -381,10 +440,18 @@ async function twelveData(
     }))
 
     .filter(candle =>
-      Number.isFinite(candle.open) &&
-      Number.isFinite(candle.high) &&
-      Number.isFinite(candle.low) &&
-      Number.isFinite(candle.close)
+      Number.isFinite(
+        candle.open
+      ) &&
+      Number.isFinite(
+        candle.high
+      ) &&
+      Number.isFinite(
+        candle.low
+      ) &&
+      Number.isFinite(
+        candle.close
+      )
     )
 
     .sort(
@@ -396,25 +463,54 @@ async function twelveData(
 
 /*
 =========================================================
-12H CANDLE BUILDER
+REMOVE INCOMPLETE 1H CANDLE
+=========================================================
+*/
+
+function getClosedHourlyCandles(
+  candles
+) {
+  if (
+    !candles ||
+    !candles.length
+  ) {
+    return [];
+  }
+
+  const now =
+    new Date();
+
+  const currentHourStart =
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      0,
+      0
+    );
+
+  return candles.filter(
+    candle =>
+      candle.datetime.getTime() <
+      currentHourStart
+  );
+}
+
+/*
+=========================================================
+12H AGGREGATION
 =========================================================
 */
 
 /*
-IMPORTANT:
+We create:
 
-We build 12H candles from 1H candles.
+00:00 -> 12:00 UTC
 
-12H sessions are:
+12:00 -> 00:00 UTC
 
-00:00 - 12:00 UTC
-12:00 - 00:00 UTC
-
-Only COMPLETED 12H candles are used
-for the official 12H bias.
-
-This prevents the current forming candle
-from changing the higher-timeframe direction.
+Only completed 12H candles are used later.
 */
 
 function aggregate12HCandles(
@@ -455,7 +551,9 @@ function aggregate12HCandles(
     const key =
       `${year}-${month}-${day}-${half}`;
 
-    if (!groups.has(key)) {
+    if (
+      !groups.has(key)
+    ) {
       groups.set(
         key,
         []
@@ -470,7 +568,10 @@ function aggregate12HCandles(
   const result = [];
 
   for (
-    const [key, candles] of groups
+    const [
+      key,
+      candles
+    ] of groups
   ) {
     candles.sort(
       (a, b) =>
@@ -479,10 +580,8 @@ function aggregate12HCandles(
     );
 
     /*
-    Require at least 10 hourly candles.
-
-    This is safer for FX because there can
-    be missing hours around market/session gaps.
+    Require at least 10 hourly
+    candles to form a valid session.
     */
 
     if (
@@ -531,11 +630,6 @@ function aggregate12HCandles(
           0
         ),
 
-      /*
-      Keep track of how many 1H candles
-      were used.
-      */
-
       candleCount:
         candles.length
     });
@@ -550,7 +644,7 @@ function aggregate12HCandles(
 
 /*
 =========================================================
-REMOVE CURRENT INCOMPLETE 12H CANDLE
+GET COMPLETED 12H CANDLES
 =========================================================
 */
 
@@ -570,20 +664,12 @@ function getClosed12HCandles(
   const currentHour =
     now.getUTCHours();
 
-  /*
-  Current 12H session:
-
-  00-12 UTC
-  OR
-  12-00 UTC
-  */
-
   const currentSessionStart =
     currentHour < 12
       ? 0
       : 12;
 
-  const todayStart =
+  const currentSessionStartTime =
     Date.UTC(
       now.getUTCFullYear(),
       now.getUTCMonth(),
@@ -596,7 +682,7 @@ function getClosed12HCandles(
   return candles.filter(
     candle =>
       candle.datetime.getTime() <
-      todayStart
+      currentSessionStartTime
   );
 }
 
@@ -619,7 +705,6 @@ function calculateRSI(
   }
 
   let gains = 0;
-
   let losses = 0;
 
   for (
@@ -631,7 +716,9 @@ function calculateRSI(
       candles[i].close -
       candles[i - 1].close;
 
-    if (change >= 0) {
+    if (
+      change >= 0
+    ) {
       gains += change;
     } else {
       losses +=
@@ -703,7 +790,20 @@ TREND
 =========================================================
 */
 
-function getTrend(candles) {
+/*
+Uses:
+
+- Direction of recent candles
+- Fast average
+- Slow average
+
+This is deliberately stricter than
+looking at one candle.
+*/
+
+function getTrend(
+  candles
+) {
   if (
     !candles ||
     candles.length < 20
@@ -757,17 +857,187 @@ function getTrend(candles) {
 
 /*
 =========================================================
-12H TREND - GBPJPY FIX
+12H STRUCTURAL TREND
+=========================================================
+*/
+
+/*
+This is the important fix.
+
+The 12H bias is NOT based simply
+on whether the latest candle is red.
+
+We check:
+
+1. Recent 12H price direction
+2. Fast/slow average
+3. Higher highs / higher lows
+4. Lower highs / lower lows
+
+If these disagree, we use NEUTRAL.
+*/
+
+function get12HTrend(
+  candles
+) {
+  if (
+    !candles ||
+    candles.length < 20
+  ) {
+    return "UNKNOWN";
+  }
+
+  const recent =
+    candles.slice(-20);
+
+  const fast =
+    average(
+      recent
+        .slice(-5)
+        .map(
+          c => c.close
+        )
+    );
+
+  const slow =
+    average(
+      recent.map(
+        c => c.close
+      )
+    );
+
+  const first =
+    recent[0].close;
+
+  const last =
+    recent[
+      recent.length - 1
+    ].close;
+
+  /*
+  Find swing highs/lows.
+  */
+
+  const highs = [];
+  const lows = [];
+
+  for (
+    let i = 2;
+    i <
+      recent.length - 2;
+    i++
+  ) {
+    if (
+      findSwingHigh(
+        recent,
+        i
+      )
+    ) {
+      highs.push(
+        recent[i].high
+      );
+    }
+
+    if (
+      findSwingLow(
+        recent,
+        i
+      )
+    ) {
+      lows.push(
+        recent[i].low
+      );
+    }
+  }
+
+  let bullishStructure =
+    false;
+
+  let bearishStructure =
+    false;
+
+  if (
+    highs.length >= 2 &&
+    lows.length >= 2
+  ) {
+    const previousHigh =
+      highs[
+        highs.length - 2
+      ];
+
+    const latestHigh =
+      highs[
+        highs.length - 1
+      ];
+
+    const previousLow =
+      lows[
+        lows.length - 2
+      ];
+
+    const latestLow =
+      lows[
+        lows.length - 1
+      ];
+
+    bullishStructure =
+      latestHigh >
+        previousHigh &&
+      latestLow >
+        previousLow;
+
+    bearishStructure =
+      latestHigh <
+        previousHigh &&
+      latestLow <
+        previousLow;
+  }
+
+  /*
+  Bullish requires trend agreement.
+
+  */
+
+  const bullish =
+    last > first &&
+    fast > slow &&
+    (
+      bullishStructure ||
+      highs.length < 2
+    );
+
+  /*
+  Bearish requires trend agreement.
+  */
+
+  const bearish =
+    last < first &&
+    fast < slow &&
+    (
+      bearishStructure ||
+      lows.length < 2
+    );
+
+  if (bullish) {
+    return "BULLISH";
+  }
+
+  if (bearish) {
+    return "BEARISH";
+  }
+
+  return "NEUTRAL";
+}
+
+/*
+=========================================================
+12H ANALYSIS
 =========================================================
 */
 
 function get12HAnalysis(
   candles
 ) {
-  /*
-  ONLY CLOSED 12H CANDLES
-  */
-
   const closed =
     getClosed12HCandles(
       candles
@@ -800,27 +1070,15 @@ function get12HAnalysis(
     };
   }
 
-  /*
-  Last closed 12H candle
-  */
-
   const current =
     closed[
       closed.length - 1
     ];
 
-  /*
-  Candle before it
-  */
-
   const previous =
     closed[
       closed.length - 2
     ];
-
-  /*
-  Trend using ONLY CLOSED candles.
-  */
 
   const previousSet =
     closed.slice(
@@ -829,12 +1087,12 @@ function get12HAnalysis(
     );
 
   const previousTrend =
-    getTrend(
+    get12HTrend(
       previousSet
     );
 
   const currentTrend =
-    getTrend(
+    get12HTrend(
       closed
     );
 
@@ -849,43 +1107,19 @@ function get12HAnalysis(
     );
 
   /*
-  ========================================================
-  IMPORTANT BIAS LOGIC
-  ========================================================
+  IMPORTANT:
 
-  Do NOT automatically call the 12H trend bearish
-  just because the last candle is red.
+  We no longer say:
 
-  The trend must agree with the moving structure.
+  red candle = bearish
+  green candle = bullish
 
+  If structure is unclear,
+  the bias remains NEUTRAL.
   */
 
-  let bias =
+  const bias =
     currentTrend;
-
-  /*
-  If trend is neutral, use the closed candle
-  direction only as a secondary confirmation.
-  */
-
-  if (
-    currentTrend ===
-    "NEUTRAL"
-  ) {
-    if (
-      current.close >
-      current.open
-    ) {
-      bias =
-        "BULLISH";
-    } else if (
-      current.close <
-      current.open
-    ) {
-      bias =
-        "BEARISH";
-    }
-  }
 
   return {
     previousTrend,
@@ -990,20 +1224,27 @@ function getStructure(
     candles.length < 15
   ) {
     return {
-      structure: "UNKNOWN",
-      bos: "—",
-      choch: "—",
-      liquidity: "—"
+      structure:
+        "UNKNOWN",
+
+      bos:
+        "—",
+
+      choch:
+        "—",
+
+      liquidity:
+        "—"
     };
   }
 
   const highs = [];
-
   const lows = [];
 
   for (
     let i = 2;
-    i < candles.length - 2;
+    i <
+      candles.length - 2;
     i++
   ) {
     if (
@@ -1051,9 +1292,11 @@ function getStructure(
   let structure =
     "RANGE";
 
-  let bos = "—";
+  let bos =
+    "—";
 
-  let choch = "—";
+  let choch =
+    "—";
 
   if (
     previousHigh !== null &&
@@ -1106,7 +1349,8 @@ function getStructure(
       "BEARISH";
   }
 
-  let liquidity = "—";
+  let liquidity =
+    "—";
 
   if (
     previousHigh !== null &&
@@ -1349,15 +1593,15 @@ function analyzePair(
   const h1Trend =
     getTrend(h1);
 
+  const h1RSI =
+    calculateRSI(h1);
+
   /*
   5M
   */
 
   const m5Trend =
     getTrend(m5);
-
-  const h1RSI =
-    calculateRSI(h1);
 
   const m5RSI =
     calculateRSI(m5);
@@ -1397,7 +1641,6 @@ function analyzePair(
     );
 
   let buyScore = 0;
-
   let sellScore = 0;
 
   /*
@@ -1533,7 +1776,7 @@ function analyzePair(
   let status =
     "WAIT";
 
-  let score =
+  const score =
     Math.max(
       buyScore,
       sellScore
@@ -1575,6 +1818,31 @@ function analyzePair(
 
   /*
   ========================================================
+  EXTRA SAFETY:
+  5M SHOULD AGREE
+  ========================================================
+  */
+
+  if (
+    status === "BUY" &&
+    m5Trend !==
+      "BULLISH"
+  ) {
+    status =
+      "WAIT";
+  }
+
+  if (
+    status === "SELL" &&
+    m5Trend !==
+      "BEARISH"
+  ) {
+    status =
+      "WAIT";
+  }
+
+  /*
+  ========================================================
   EXTENSION PROTECTION
   ========================================================
   */
@@ -1582,7 +1850,8 @@ function analyzePair(
   const atr =
     calculateATR(m5);
 
-  let extended = false;
+  let extended =
+    false;
 
   if (atr !== null) {
     const reference =
@@ -1603,7 +1872,8 @@ function analyzePair(
       distance >
       atr * 2.5
     ) {
-      extended = true;
+      extended =
+        true;
 
       status =
         "WAIT";
@@ -1616,11 +1886,14 @@ function analyzePair(
   ========================================================
   */
 
-  let entry = null;
+  let entry =
+    null;
 
-  let stopLoss = null;
+  let stopLoss =
+    null;
 
-  let takeProfit = null;
+  let takeProfit =
+    null;
 
   /*
   BUY
@@ -1644,7 +1917,9 @@ function analyzePair(
       entry -
       stopLoss;
 
-    if (risk > 0) {
+    if (
+      risk > 0
+    ) {
       takeProfit =
         entry +
         risk * 2;
@@ -1673,7 +1948,9 @@ function analyzePair(
       stopLoss -
       entry;
 
-    if (risk > 0) {
+    if (
+      risk > 0
+    ) {
       takeProfit =
         entry -
         risk * 2;
@@ -1769,7 +2046,8 @@ function analyzePair(
   */
 
   return {
-    symbol: pair,
+    symbol:
+      pair,
 
     status,
 
@@ -1839,6 +2117,31 @@ function analyzePair(
                 close:
                   h12Analysis
                     .previousCandle
+                    .close
+              }
+            : null,
+
+        currentCandle:
+          h12Analysis.currentCandle
+            ? {
+                open:
+                  h12Analysis
+                    .currentCandle
+                    .open,
+
+                high:
+                  h12Analysis
+                    .currentCandle
+                    .high,
+
+                low:
+                  h12Analysis
+                    .currentCandle
+                    .low,
+
+                close:
+                  h12Analysis
+                    .currentCandle
                     .close
               }
             : null
@@ -1987,7 +2290,9 @@ RSI: ${signal.timeframes.m5.rsi ?? "—"}
         }
       );
 
-    if (!response.ok) {
+    if (
+      !response.ok
+    ) {
       console.error(
         "Telegram HTTP error:",
         response.status
@@ -2016,18 +2321,23 @@ function setMarketClosed(
   result.status =
     "WAIT";
 
-  result.score = 0;
+  result.score =
+    0;
 
   result.message =
     "Market closed — monitoring will resume when the market opens.";
 
-  result.price = null;
+  result.price =
+    null;
 
-  result.entry = null;
+  result.entry =
+    null;
 
-  result.stopLoss = null;
+  result.stopLoss =
+    null;
 
-  result.takeProfit = null;
+  result.takeProfit =
+    null;
 
   result.updated =
     new Date().toISOString();
@@ -2037,7 +2347,8 @@ function setMarketClosed(
       trend:
         "MARKET CLOSED",
 
-      rsi: null,
+      rsi:
+        null,
 
       previous:
         "UNKNOWN",
@@ -2046,6 +2357,9 @@ function setMarketClosed(
         "UNKNOWN",
 
       previousCandle:
+        null,
+
+      currentCandle:
         null
     },
 
@@ -2053,14 +2367,16 @@ function setMarketClosed(
       trend:
         "MARKET CLOSED",
 
-      rsi: null
+      rsi:
+        null
     },
 
     m5: {
       trend:
         "MARKET CLOSED",
 
-      rsi: null
+      rsi:
+        null
     }
   };
 
@@ -2146,7 +2462,7 @@ async function getHourlyData(
     hourly;
 
   cached.updated =
-    now;
+    Date.now();
 
   return hourly;
 }
@@ -2177,7 +2493,7 @@ async function scanPair(
   try {
     /*
     ================================================
-    1H
+    1H CACHE
     ================================================
     */
 
@@ -2188,13 +2504,24 @@ async function scanPair(
 
     /*
     ================================================
-    12H
+    REMOVE CURRENT 1H CANDLE
+    ================================================
+    */
+
+    const closedHourly =
+      getClosedHourlyCandles(
+        hourly
+      );
+
+    /*
+    ================================================
+    BUILD 12H
     ================================================
     */
 
     const h12 =
       aggregate12HCandles(
-        hourly
+        closedHourly
       );
 
     /*
@@ -2204,7 +2531,9 @@ async function scanPair(
     */
 
     const h1 =
-      hourly.slice(-150);
+      closedHourly.slice(
+        -150
+      );
 
     /*
     ================================================
@@ -2239,7 +2568,7 @@ async function scanPair(
       h1.length < 20
     ) {
       throw new Error(
-        "Not enough 1H candles"
+        "Not enough closed 1H candles"
       );
     }
 
@@ -2307,7 +2636,9 @@ async function scanPair(
     }
 
     /*
+    ================================================
     SAVE
+    ================================================
     */
 
     state.pairs[pair] =
@@ -2326,7 +2657,8 @@ async function scanPair(
     result.status =
       "OFFLINE";
 
-    result.score = 0;
+    result.score =
+      0;
 
     result.message =
       error.message;
@@ -2334,83 +2666,17 @@ async function scanPair(
     result.updated =
       new Date().toISOString();
 
-    result.price = null;
+    result.price =
+      null;
 
-    result.entry = null;
+    result.entry =
+      null;
 
-    result.stopLoss = null;
+    result.stopLoss =
+      null;
 
-    result.takeProfit = null;
-
-    result.timeframes = {
-      h12: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null,
-
-        previous:
-          "UNKNOWN",
-
-        current:
-          "UNKNOWN",
-
-        previousCandle:
-          null
-      },
-
-      h1: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null
-      },
-
-      m5: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null
-      }
-    };
-
-    result.analysis = {
-      direction:
-        "WAIT",
-
-      h12SMC:
-        "UNKNOWN",
-
-      h1SMC:
-        "UNKNOWN",
-
-      breakout:
-        false,
-
-      rejection:
-        false,
-
-      location:
-        "—",
-
-      extended:
-        false,
-
-      structure:
-        "—",
-
-      bos:
-        "—",
-
-      choch:
-        "—",
-
-      liquidity:
-        "—"
-    };
+    result.takeProfit =
+      null;
 
     state.api.lastError =
       `${pair}: ${error.message}`;
@@ -2433,7 +2699,8 @@ async function scanAll() {
   const marketOpen =
     isMarketOpen();
 
-  state.online = true;
+  state.online =
+    true;
 
   console.log(
     "===================================="
@@ -2479,7 +2746,13 @@ async function scanAll() {
   ) {
     await scanPair(pair);
 
-    await sleep(1000);
+    /*
+    Protect API rate limits.
+    */
+
+    await sleep(
+      REQUEST_DELAY_MS
+    );
   }
 
   state.lastScan =
@@ -2592,14 +2865,16 @@ HEALTH
 app.get(
   "/health",
   (req, res) => {
+    const marketOpen =
+      isMarketOpen();
+
     res.json({
       ok: true,
 
-      marketOpen:
-        isMarketOpen(),
+      marketOpen,
 
       marketStatus:
-        isMarketOpen()
+        marketOpen
           ? "OPEN"
           : "CLOSED",
 
@@ -2638,6 +2913,12 @@ app.get(
         true,
 
       h1Cache:
+        true,
+
+      h1CacheMinutes:
+        60,
+
+      fiveMinuteRefresh:
         true,
 
       message:
@@ -2712,6 +2993,10 @@ app.listen(
     );
 
     console.log(
+      "1H: CLOSED CANDLES ONLY"
+    );
+
+    console.log(
       "1H: CACHED FOR 60 MINUTES"
     );
 
@@ -2737,6 +3022,10 @@ app.listen(
 
     console.log(
       "EXTENSION PROTECTION: ENABLED"
+    );
+
+    console.log(
+      "12H STRUCTURAL BIAS: ENABLED"
     );
 
     console.log(
