@@ -20,10 +20,6 @@ TRADING SETTINGS
 
 const TIMEFRAME = "5min";
 
-/*
-Minimum 5 minutes between scans.
-*/
-
 const POLL_MS = Math.max(
   300000,
   Number(process.env.POLL_MS || 300000)
@@ -42,40 +38,15 @@ const PAIRS = [
 
 /*
 =========================================================
-CACHE SETTINGS
+CACHE / API PROTECTION
 =========================================================
 */
 
-/*
-1H data is only refreshed once per hour.
+const H1_REFRESH_MS = 60 * 60 * 1000;
 
-This means:
+const API_COOLDOWN_MS = 60 * 1000;
 
-2 pairs = normally only 2 x 1H requests/hour
-
-5M data is refreshed every scan:
-
-2 pairs = 2 x 5M requests/5 minutes
-*/
-
-const H1_REFRESH_MS =
-  60 * 60 * 1000;
-
-/*
-=========================================================
-API RATE LIMIT PROTECTION
-=========================================================
-*/
-
-const API_COOLDOWN_MS =
-  60 * 1000;
-
-/*
-Small delay between requests.
-*/
-
-const REQUEST_DELAY_MS =
-  1200;
+const REQUEST_DELAY_MS = 1200;
 
 /*
 =========================================================
@@ -146,8 +117,7 @@ for (const pair of PAIRS) {
 
     score: 0,
 
-    message:
-      "Waiting for market data...",
+    message: "Waiting for market data...",
 
     price: null,
 
@@ -215,17 +185,13 @@ MARKET HOURS
 function isMarketOpen() {
   const now = new Date();
 
-  const day =
-    now.getUTCDay();
+  const day = now.getUTCDay();
 
-  const hour =
-    now.getUTCHours();
+  const hour = now.getUTCHours();
 
-  const minute =
-    now.getUTCMinutes();
+  const minute = now.getUTCMinutes();
 
-  const minutes =
-    hour * 60 + minute;
+  const minutes = hour * 60 + minute;
 
   /*
   Saturday
@@ -281,10 +247,9 @@ function num(value) {
 }
 
 function average(values) {
-  const clean =
-    values.filter(
-      Number.isFinite
-    );
+  const clean = values.filter(
+    Number.isFinite
+  );
 
   if (!clean.length) {
     return null;
@@ -298,27 +263,18 @@ function average(values) {
   );
 }
 
-function roundPrice(
-  value,
-  pair
-) {
-  if (
-    !Number.isFinite(value)
-  ) {
+function roundPrice(value, pair) {
+  if (!Number.isFinite(value)) {
     return null;
   }
 
   let decimals = 5;
 
-  if (
-    pair === "XAU/USD"
-  ) {
+  if (pair === "XAU/USD") {
     decimals = 2;
   }
 
-  if (
-    pair.includes("JPY")
-  ) {
+  if (pair.includes("JPY")) {
     decimals = 3;
   }
 
@@ -345,7 +301,7 @@ async function twelveData(
   }
 
   /*
-  Global cooldown
+  Cooldown protection
   */
 
   if (
@@ -353,8 +309,15 @@ async function twelveData(
     Date.now() <
       state.api.cooldownUntil
   ) {
+    const remaining = Math.ceil(
+      (
+        state.api.cooldownUntil -
+        Date.now()
+      ) / 1000
+    );
+
     throw new Error(
-      "Twelve Data cooldown active"
+      `Twelve Data cooldown active (${remaining}s)`
     );
   }
 
@@ -367,8 +330,7 @@ async function twelveData(
 
   state.api.totalRequests++;
 
-  const response =
-    await fetch(url);
+  const response = await fetch(url);
 
   const data =
     await response
@@ -379,9 +341,7 @@ async function twelveData(
   RATE LIMIT
   */
 
-  if (
-    response.status === 429
-  ) {
+  if (response.status === 429) {
     state.api.cooldownUntil =
       Date.now() +
       API_COOLDOWN_MS;
@@ -391,11 +351,19 @@ async function twelveData(
     );
   }
 
+  /*
+  OTHER HTTP ERROR
+  */
+
   if (!response.ok) {
     throw new Error(
       `Twelve Data HTTP ${response.status}`
     );
   }
+
+  /*
+  API ERROR
+  */
 
   if (
     data &&
@@ -406,6 +374,10 @@ async function twelveData(
       "Twelve Data error"
     );
   }
+
+  /*
+  NO DATA
+  */
 
   if (
     !data ||
@@ -418,25 +390,19 @@ async function twelveData(
 
   return data.values
     .map(candle => ({
-      datetime:
-        new Date(
-          candle.datetime
-        ),
+      datetime: new Date(
+        candle.datetime
+      ),
 
-      open:
-        num(candle.open),
+      open: num(candle.open),
 
-      high:
-        num(candle.high),
+      high: num(candle.high),
 
-      low:
-        num(candle.low),
+      low: num(candle.low),
 
-      close:
-        num(candle.close),
+      close: num(candle.close),
 
-      volume:
-        num(candle.volume)
+      volume: num(candle.volume)
     }))
 
     .filter(candle =>
@@ -477,8 +443,7 @@ function getClosedHourlyCandles(
     return [];
   }
 
-  const now =
-    new Date();
+  const now = new Date();
 
   const currentHourStart =
     Date.UTC(
@@ -503,16 +468,6 @@ function getClosedHourlyCandles(
 =========================================================
 */
 
-/*
-We create:
-
-00:00 -> 12:00 UTC
-
-12:00 -> 00:00 UTC
-
-Only completed 12H candles are used later.
-*/
-
 function aggregate12HCandles(
   hourlyCandles
 ) {
@@ -528,8 +483,7 @@ function aggregate12HCandles(
   for (
     const candle of hourlyCandles
   ) {
-    const date =
-      candle.datetime;
+    const date = candle.datetime;
 
     const year =
       date.getUTCFullYear();
@@ -551,9 +505,7 @@ function aggregate12HCandles(
     const key =
       `${year}-${month}-${day}-${half}`;
 
-    if (
-      !groups.has(key)
-    ) {
+    if (!groups.has(key)) {
       groups.set(
         key,
         []
@@ -581,17 +533,14 @@ function aggregate12HCandles(
 
     /*
     Require at least 10 hourly
-    candles to form a valid session.
+    candles.
     */
 
-    if (
-      candles.length < 10
-    ) {
+    if (candles.length < 10) {
       continue;
     }
 
-    const first =
-      candles[0];
+    const first = candles[0];
 
     const last =
       candles[
@@ -658,8 +607,7 @@ function getClosed12HCandles(
     return [];
   }
 
-  const now =
-    new Date();
+  const now = new Date();
 
   const currentHour =
     now.getUTCHours();
@@ -705,6 +653,7 @@ function calculateRSI(
   }
 
   let gains = 0;
+
   let losses = 0;
 
   for (
@@ -716,9 +665,7 @@ function calculateRSI(
       candles[i].close -
       candles[i - 1].close;
 
-    if (
-      change >= 0
-    ) {
+    if (change >= 0) {
       gains += change;
     } else {
       losses +=
@@ -768,9 +715,7 @@ function calculateRSI(
       ) / period;
   }
 
-  if (
-    avgLoss === 0
-  ) {
+  if (avgLoss === 0) {
     return 100;
   }
 
@@ -790,20 +735,7 @@ TREND
 =========================================================
 */
 
-/*
-Uses:
-
-- Direction of recent candles
-- Fast average
-- Slow average
-
-This is deliberately stricter than
-looking at one candle.
-*/
-
-function getTrend(
-  candles
-) {
+function getTrend(candles) {
   if (
     !candles ||
     candles.length < 20
@@ -857,24 +789,68 @@ function getTrend(
 
 /*
 =========================================================
-12H STRUCTURAL TREND
+SWING HIGH
 =========================================================
 */
 
+function findSwingHigh(
+  candles,
+  index
+) {
+  if (
+    index < 2 ||
+    index >=
+      candles.length - 2
+  ) {
+    return false;
+  }
+
+  return (
+    candles[index].high >
+      candles[index - 1].high &&
+    candles[index].high >
+      candles[index - 2].high &&
+    candles[index].high >
+      candles[index + 1].high &&
+    candles[index].high >
+      candles[index + 2].high
+  );
+}
+
 /*
-This is the important fix.
+=========================================================
+SWING LOW
+=========================================================
+*/
 
-The 12H bias is NOT based simply
-on whether the latest candle is red.
+function findSwingLow(
+  candles,
+  index
+) {
+  if (
+    index < 2 ||
+    index >=
+      candles.length - 2
+  ) {
+    return false;
+  }
 
-We check:
+  return (
+    candles[index].low <
+      candles[index - 1].low &&
+    candles[index].low <
+      candles[index - 2].low &&
+    candles[index].low <
+      candles[index + 1].low &&
+    candles[index].low <
+      candles[index + 2].low
+  );
+}
 
-1. Recent 12H price direction
-2. Fast/slow average
-3. Higher highs / higher lows
-4. Lower highs / lower lows
-
-If these disagree, we use NEUTRAL.
+/*
+=========================================================
+12H STRUCTURAL TREND
+=========================================================
 */
 
 function get12HTrend(
@@ -914,11 +890,8 @@ function get12HTrend(
       recent.length - 1
     ].close;
 
-  /*
-  Find swing highs/lows.
-  */
-
   const highs = [];
+
   const lows = [];
 
   for (
@@ -993,11 +966,6 @@ function get12HTrend(
         previousLow;
   }
 
-  /*
-  Bullish requires trend agreement.
-
-  */
-
   const bullish =
     last > first &&
     fast > slow &&
@@ -1005,10 +973,6 @@ function get12HTrend(
       bullishStructure ||
       highs.length < 2
     );
-
-  /*
-  Bearish requires trend agreement.
-  */
 
   const bearish =
     last < first &&
@@ -1106,21 +1070,6 @@ function get12HAnalysis(
       closed
     );
 
-  /*
-  IMPORTANT:
-
-  We no longer say:
-
-  red candle = bearish
-  green candle = bullish
-
-  If structure is unclear,
-  the bias remains NEUTRAL.
-  */
-
-  const bias =
-    currentTrend;
-
   return {
     previousTrend,
 
@@ -1140,7 +1089,8 @@ function get12HAnalysis(
           )
         : null,
 
-    bias,
+    bias:
+      currentTrend,
 
     previousCandle:
       previous,
@@ -1148,66 +1098,6 @@ function get12HAnalysis(
     currentCandle:
       current
   };
-}
-
-/*
-=========================================================
-SWING HIGH
-=========================================================
-*/
-
-function findSwingHigh(
-  candles,
-  index
-) {
-  if (
-    index < 2 ||
-    index >=
-      candles.length - 2
-  ) {
-    return false;
-  }
-
-  return (
-    candles[index].high >
-      candles[index - 1].high &&
-    candles[index].high >
-      candles[index - 2].high &&
-    candles[index].high >
-      candles[index + 1].high &&
-    candles[index].high >
-      candles[index + 2].high
-  );
-}
-
-/*
-=========================================================
-SWING LOW
-=========================================================
-*/
-
-function findSwingLow(
-  candles,
-  index
-) {
-  if (
-    index < 2 ||
-    index >=
-      candles.length - 2
-  ) {
-    return false;
-  }
-
-  return (
-    candles[index].low <
-      candles[index - 1].low &&
-    candles[index].low <
-      candles[index - 2].low &&
-    candles[index].low <
-      candles[index + 1].low &&
-    candles[index].low <
-      candles[index + 2].low
-  );
 }
 
 /*
@@ -1239,6 +1129,7 @@ function getStructure(
   }
 
   const highs = [];
+
   const lows = [];
 
   for (
@@ -1641,6 +1532,7 @@ function analyzePair(
     );
 
   let buyScore = 0;
+
   let sellScore = 0;
 
   /*
@@ -1818,8 +1710,7 @@ function analyzePair(
 
   /*
   ========================================================
-  EXTRA SAFETY:
-  5M SHOULD AGREE
+  5M MUST AGREE
   ========================================================
   */
 
@@ -1917,9 +1808,7 @@ function analyzePair(
       entry -
       stopLoss;
 
-    if (
-      risk > 0
-    ) {
+    if (risk > 0) {
       takeProfit =
         entry +
         risk * 2;
@@ -1948,9 +1837,7 @@ function analyzePair(
       stopLoss -
       entry;
 
-    if (
-      risk > 0
-    ) {
+    if (risk > 0) {
       takeProfit =
         entry -
         risk * 2;
@@ -2290,9 +2177,7 @@ RSI: ${signal.timeframes.m5.rsi ?? "—"}
         }
       );
 
-    if (
-      !response.ok
-    ) {
+    if (!response.ok) {
       console.error(
         "Telegram HTTP error:",
         response.status
@@ -2493,7 +2378,7 @@ async function scanPair(
   try {
     /*
     ================================================
-    1H CACHE
+    1H
     ================================================
     */
 
@@ -2504,7 +2389,7 @@ async function scanPair(
 
     /*
     ================================================
-    REMOVE CURRENT 1H CANDLE
+    CLOSED 1H
     ================================================
     */
 
@@ -2515,7 +2400,7 @@ async function scanPair(
 
     /*
     ================================================
-    BUILD 12H
+    12H
     ================================================
     */
 
@@ -2747,7 +2632,7 @@ async function scanAll() {
     await scanPair(pair);
 
     /*
-    Protect API rate limits.
+    API protection
     */
 
     await sleep(
