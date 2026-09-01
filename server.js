@@ -14,21 +14,16 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 /*
 =========================================================
-TIMEFRAME SETTINGS
+TIMEFRAME
 =========================================================
 */
 
 const TIMEFRAME = "5min";
 
 /*
-Scan every 5 minutes.
-
-IMPORTANT:
-5M data is refreshed every scan.
-
-1H data is cached and refreshed only every 60 minutes.
-
-This significantly reduces Twelve Data API usage.
+=========================================================
+SCAN INTERVAL
+=========================================================
 */
 
 const POLL_MS = Math.max(
@@ -38,13 +33,12 @@ const POLL_MS = Math.max(
 
 /*
 =========================================================
-ONLY 3 PAIRS
+ONLY 2 PAIRS
 =========================================================
 */
 
 const PAIRS = [
   "XAU/USD",
-  "USD/CAD",
   "GBP/JPY"
 ];
 
@@ -103,10 +97,6 @@ H1 CACHE
 */
 
 const h1Cache = {};
-
-/*
-Initialize cache.
-*/
 
 for (const pair of PAIRS) {
   h1Cache[pair] = {
@@ -296,7 +286,7 @@ function roundPrice(value, pair) {
 
 /*
 =========================================================
-TWELVE DATA API
+TWELVE DATA
 =========================================================
 */
 
@@ -312,8 +302,7 @@ async function twelveData(
   }
 
   /*
-  If API cooldown is active,
-  don't make another request.
+  RATE LIMIT COOLDOWN
   */
 
   if (
@@ -344,17 +333,12 @@ async function twelveData(
     );
 
   /*
-  RATE LIMIT
+  429 RATE LIMIT
   */
 
   if (
     response.status === 429
   ) {
-    /*
-    Wait 60 seconds before
-    allowing another request.
-    */
-
     state.api.cooldownUntil =
       Date.now() + 60000;
 
@@ -425,7 +409,7 @@ async function twelveData(
 
 /*
 =========================================================
-12H CANDLE BUILDER
+BUILD 12H FROM 1H
 =========================================================
 */
 
@@ -1127,12 +1111,8 @@ function get12HAnalysis(
   }
 
   /*
-  Ignore the current incomplete
+  Ignore current incomplete
   12H candle.
-
-  This prevents the 12H bias
-  from changing while the candle
-  is still forming.
   */
 
   const current =
@@ -1171,8 +1151,7 @@ function get12HAnalysis(
     previousTrend;
 
   /*
-  Stable candle-direction
-  confirmation.
+  Candle direction confirmation.
   */
 
   if (
@@ -1294,7 +1273,7 @@ function analyzePair(
 
   /*
   ========================================================
-  12H BIAS
+  12H
   ========================================================
   */
 
@@ -1314,7 +1293,7 @@ function analyzePair(
 
   /*
   ========================================================
-  1H TREND
+  1H
   ========================================================
   */
 
@@ -1334,7 +1313,7 @@ function analyzePair(
 
   /*
   ========================================================
-  5M TREND
+  5M
   ========================================================
   */
 
@@ -1376,7 +1355,7 @@ function analyzePair(
 
   /*
   ========================================================
-  SMC CONFIRMATION
+  SMC
   ========================================================
   */
 
@@ -1433,7 +1412,7 @@ function analyzePair(
 
   /*
   ========================================================
-  STRONG BUY
+  BUY
   ========================================================
   */
 
@@ -1450,7 +1429,7 @@ function analyzePair(
 
   /*
   ========================================================
-  STRONG SELL
+  SELL
   ========================================================
   */
 
@@ -1994,7 +1973,7 @@ function setMarketClosed(
 
 /*
 =========================================================
-GET CACHED 1H DATA
+GET 1H DATA
 =========================================================
 */
 
@@ -2008,8 +1987,7 @@ async function getHourlyData(
     Date.now();
 
   /*
-  Use cache if it is less than
-  one hour old.
+  CACHE FOR 60 MINUTES
   */
 
   if (
@@ -2027,7 +2005,7 @@ async function getHourlyData(
   }
 
   /*
-  Refresh 1H data.
+  REFRESH 1H
   */
 
   console.log(
@@ -2067,10 +2045,6 @@ async function scanPair(
   result.updated =
     new Date().toISOString();
 
-  /*
-  Market closed
-  */
-
   if (
     !isMarketOpen()
   ) {
@@ -2081,11 +2055,7 @@ async function scanPair(
 
   try {
     /*
-    ================================================
-    1H DATA
-    ================================================
-
-    Cached for one hour.
+    1H
     */
 
     const hourly =
@@ -2094,9 +2064,7 @@ async function scanPair(
       );
 
     /*
-    ================================================
-    BUILD 12H
-    ================================================
+    12H
     */
 
     const h12 =
@@ -2105,18 +2073,14 @@ async function scanPair(
       );
 
     /*
-    ================================================
     1H
-    ================================================
     */
 
     const h1 =
       hourly.slice(-150);
 
     /*
-    ================================================
-    5M DATA
-    ================================================
+    5M
     */
 
     const m5 =
@@ -2129,9 +2093,7 @@ async function scanPair(
     state.api.requestsThisScan++;
 
     /*
-    ================================================
     VALIDATION
-    ================================================
     */
 
     if (
@@ -2159,9 +2121,7 @@ async function scanPair(
     }
 
     /*
-    ================================================
-    ANALYSIS
-    ================================================
+    ANALYZE
     */
 
     const signal =
@@ -2176,9 +2136,7 @@ async function scanPair(
       result.status;
 
     /*
-    ================================================
-    NEW BUY SIGNAL
-    ================================================
+    NEW BUY
     */
 
     if (
@@ -2195,9 +2153,7 @@ async function scanPair(
     }
 
     /*
-    ================================================
-    NEW SELL SIGNAL
-    ================================================
+    NEW SELL
     */
 
     if (
@@ -2214,7 +2170,7 @@ async function scanPair(
     }
 
     /*
-    Save result.
+    SAVE
     */
 
     state.pairs[pair] =
@@ -2225,11 +2181,6 @@ async function scanPair(
       `[${pair}]`,
       error.message
     );
-
-    /*
-    If rate limited,
-    don't destroy the whole dashboard.
-    */
 
     result.status =
       "OFFLINE";
@@ -2250,76 +2201,6 @@ async function scanPair(
 
     result.takeProfit = null;
 
-    result.timeframes = {
-      h12: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null,
-
-        previous:
-          "UNKNOWN",
-
-        current:
-          "UNKNOWN",
-
-        previousCandle:
-          null
-      },
-
-      h1: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null
-      },
-
-      m5: {
-        trend:
-          "UNKNOWN",
-
-        rsi:
-          null
-      }
-    };
-
-    result.analysis = {
-      direction:
-        "WAIT",
-
-      h12SMC:
-        "UNKNOWN",
-
-      h1SMC:
-        "UNKNOWN",
-
-      breakout:
-        false,
-
-      rejection:
-        false,
-
-      location:
-        "—",
-
-      extended:
-        false,
-
-      structure:
-        "—",
-
-      bos:
-        "—",
-
-      choch:
-        "—",
-
-      liquidity:
-        "—"
-    };
-
     state.api.lastError =
       `${pair}: ${error.message}`;
   }
@@ -2327,7 +2208,7 @@ async function scanPair(
 
 /*
 =========================================================
-SCAN ALL
+SCAN ALL PAIRS
 =========================================================
 */
 
@@ -2362,9 +2243,7 @@ async function scanAll() {
   );
 
   /*
-  ================================================
   MARKET CLOSED
-  ================================================
   */
 
   if (!marketOpen) {
@@ -2381,19 +2260,13 @@ async function scanAll() {
   }
 
   /*
-  ================================================
-  SCAN PAIRS ONE AT A TIME
-  ================================================
+  SCAN ONE AT A TIME
   */
 
   for (
     const pair of PAIRS
   ) {
     await scanPair(pair);
-
-    /*
-    Small delay between pairs.
-    */
 
     await sleep(1000);
   }
@@ -2416,7 +2289,7 @@ async function scanAll() {
 
 /*
 =========================================================
-STATUS API
+STATUS
 =========================================================
 */
 
@@ -2460,7 +2333,7 @@ app.get(
 
 /*
 =========================================================
-ALERTS
+ALERT STATUS
 =========================================================
 */
 
@@ -2478,6 +2351,12 @@ app.get(
     });
   }
 );
+
+/*
+=========================================================
+ENABLE / DISABLE ALERTS
+=========================================================
+*/
 
 app.post(
   "/api/alerts",
@@ -2508,14 +2387,16 @@ HEALTH
 app.get(
   "/health",
   (req, res) => {
+    const marketOpen =
+      isMarketOpen();
+
     res.json({
       ok: true,
 
-      marketOpen:
-        isMarketOpen(),
+      marketOpen,
 
       marketStatus:
-        isMarketOpen()
+        marketOpen
           ? "OPEN"
           : "CLOSED",
 
@@ -2678,7 +2559,7 @@ app.listen(
     );
 
     /*
-    Initial scan.
+    INITIAL SCAN
     */
 
     try {
@@ -2691,7 +2572,7 @@ app.listen(
     }
 
     /*
-    Continue scanning every 5 minutes.
+    CONTINUE EVERY 5 MINUTES
     */
 
     setInterval(
