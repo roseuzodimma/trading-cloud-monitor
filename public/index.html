@@ -1,111 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Trading Cloud Monitor</title>
-
-  <style>
+  <title>Trading Cloud Monitor</title>  <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b1220;
-      color: #ffffff;
-    }
-
-    header {
-      padding: 20px;
-      background: #111827;
-      border-bottom: 1px solid #263244;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    header p {
-      margin: 6px 0 0;
-      color: #9ca3af;
-      font-size: 14px;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #070b12;
+      color: #e8edf5;
+      min-height: 100vh;
     }
 
     .container {
-      max-width: 1200px;
+      width: 100%;
+      max-width: 1400px;
       margin: auto;
-      padding: 20px;
-    }
-
-    .top-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background: #111827;
-      border: 1px solid #263244;
-      border-radius: 12px;
       padding: 18px;
     }
 
-    .card-title {
-      color: #9ca3af;
+    /* HEADER */
+    .header {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .brand h1 {
+      font-size: 25px;
+      margin-bottom: 6px;
+    }
+
+    .brand p {
+      color: #7f8da3;
       font-size: 13px;
+    }
+
+    .system-status {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 9px 13px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: bold;
+      border: 1px solid #273548;
+      background: #111a27;
+    }
+
+    .pill.online {
+      color: #39e58c;
+      border-color: #1b7549;
+    }
+
+    .pill.offline {
+      color: #ff5d68;
+      border-color: #81333b;
+    }
+
+    .pill.open {
+      color: #39e58c;
+      border-color: #1b7549;
+    }
+
+    .pill.closed {
+      color: #ffbd4a;
+      border-color: #795b22;
+    }
+
+    /* SUMMARY */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .summary-card .label {
+      color: #7f8da3;
+      font-size: 12px;
       margin-bottom: 8px;
     }
 
-    .card-value {
+    .summary-card .value {
       font-size: 20px;
       font-weight: bold;
     }
 
-    .open {
-      color: #22c55e;
+    /* CONTROLS */
+    .controls {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 14px;
+      padding: 15px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
     }
 
-    .closed {
-      color: #f87171;
+    .control-title {
+      font-weight: bold;
     }
 
-    .online {
-      color: #22c55e;
+    .control-subtitle {
+      color: #7f8da3;
+      font-size: 12px;
+      margin-top: 4px;
     }
 
-    .offline {
-      color: #f87171;
-    }
-
-    .alert-box {
+    .toggle-wrap {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 15px;
-    }
-
-    .alert-text strong {
-      display: block;
-      font-size: 16px;
-    }
-
-    .alert-text span {
-      display: block;
-      margin-top: 5px;
-      color: #9ca3af;
-      font-size: 13px;
+      gap: 10px;
     }
 
     .switch {
       position: relative;
-      width: 58px;
-      height: 30px;
-      flex-shrink: 0;
+      width: 54px;
+      height: 29px;
+      display: inline-block;
     }
 
     .switch input {
@@ -115,45 +152,63 @@
     .slider {
       position: absolute;
       inset: 0;
-      cursor: pointer;
-      background: #374151;
+      background: #273243;
       border-radius: 30px;
-      transition: 0.25s;
+      cursor: pointer;
+      transition: .25s;
     }
 
     .slider:before {
       content: "";
       position: absolute;
-      width: 24px;
-      height: 24px;
-      left: 3px;
-      top: 3px;
+      width: 21px;
+      height: 21px;
+      left: 4px;
+      top: 4px;
       background: white;
       border-radius: 50%;
-      transition: 0.25s;
+      transition: .25s;
     }
 
     input:checked + .slider {
-      background: #16a34a;
+      background: #16a765;
     }
 
     input:checked + .slider:before {
-      transform: translateX(28px);
+      transform: translateX(25px);
+    }
+
+    #alertStatus {
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* PAIRS */
+    .section-title {
+      font-size: 18px;
+      margin: 20px 0 12px;
     }
 
     .pairs {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
+      gap: 16px;
+    }
+
+    .pair-card {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 16px;
+      overflow: hidden;
     }
 
     .pair-header {
+      padding: 17px;
+      border-bottom: 1px solid #1d2938;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #263244;
-      padding-bottom: 12px;
-      margin-bottom: 15px;
+      gap: 10px;
     }
 
     .pair-name {
@@ -162,168 +217,278 @@
     }
 
     .status {
-      padding: 6px 12px;
+      padding: 7px 12px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
     }
 
-    .status-buy {
-      background: #14532d;
-      color: #4ade80;
+    .status.buy {
+      background: rgba(23, 180, 105, .15);
+      color: #39e58c;
+      border: 1px solid #1b7549;
     }
 
-    .status-sell {
-      background: #7f1d1d;
-      color: #f87171;
+    .status.sell {
+      background: rgba(239, 70, 81, .15);
+      color: #ff6670;
+      border: 1px solid #81333b;
     }
 
-    .status-wait {
-      background: #374151;
-      color: #d1d5db;
+    .status.wait {
+      background: rgba(255, 189, 74, .12);
+      color: #ffbd4a;
+      border: 1px solid #795b22;
     }
 
-    .status-offline {
-      background: #450a0a;
-      color: #fca5a5;
+    .status.offline {
+      background: rgba(127, 141, 163, .12);
+      color: #9ba7b8;
+      border: 1px solid #465263;
     }
 
-    .price {
-      font-size: 28px;
-      font-weight: bold;
-      margin-bottom: 15px;
+    .pair-body {
+      padding: 17px;
     }
 
-    .trade-grid {
+    .price-row {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
       margin-bottom: 15px;
     }
 
-    .trade-box {
-      background: #0b1220;
-      border-radius: 8px;
-      padding: 10px;
+    .price-box {
+      background: #111a27;
+      border: 1px solid #202d3e;
+      border-radius: 10px;
+      padding: 11px;
     }
 
-    .trade-box small {
+    .price-box span {
       display: block;
-      color: #9ca3af;
+      color: #7f8da3;
+      font-size: 10px;
       margin-bottom: 5px;
     }
 
-    .trade-box strong {
-      font-size: 15px;
+    .price-box strong {
+      font-size: 14px;
+      word-break: break-word;
     }
 
+    .price-main {
+      color: #ffffff;
+      font-size: 18px !important;
+    }
+
+    .sl {
+      color: #ff6670;
+    }
+
+    .tp {
+      color: #39e58c;
+    }
+
+    /* SCORE */
+    .score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      background: #111a27;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .score-label {
+      color: #8b98aa;
+      font-size: 12px;
+    }
+
+    .score {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .score-high {
+      color: #39e58c;
+    }
+
+    .score-medium {
+      color: #ffbd4a;
+    }
+
+    .score-low {
+      color: #ff6670;
+    }
+
+    /* TIMEFRAMES */
     .timeframes {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-top: 15px;
+      gap: 9px;
+      margin-bottom: 15px;
     }
 
     .tf {
-      background: #0b1220;
-      border-radius: 8px;
+      background: #111a27;
+      border: 1px solid #202d3e;
+      border-radius: 10px;
       padding: 12px;
-      text-align: center;
     }
 
     .tf-title {
-      color: #9ca3af;
       font-size: 12px;
-      margin-bottom: 7px;
+      font-weight: bold;
+      margin-bottom: 8px;
     }
 
     .tf-trend {
-      font-size: 14px;
       font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .tf-rsi {
+      color: #8996a8;
+      font-size: 11px;
     }
 
     .bullish {
-      color: #4ade80;
+      color: #39e58c;
     }
 
     .bearish {
-      color: #f87171;
+      color: #ff6670;
     }
 
     .neutral {
-      color: #facc15;
+      color: #ffbd4a;
     }
 
-    .unknown {
-      color: #9ca3af;
-    }
-
+    /* ANALYSIS */
     .analysis {
-      margin-top: 15px;
-      border-top: 1px solid #263244;
-      padding-top: 15px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 15px;
     }
 
-    .analysis-row {
+    .analysis-item {
+      background: #111a27;
+      border-radius: 9px;
+      padding: 10px;
+      border: 1px solid #202d3e;
+    }
+
+    .analysis-item .label {
+      color: #748197;
+      font-size: 10px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .analysis-item .value {
+      font-size: 12px;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    /* MESSAGE */
+    .message {
+      background: #101824;
+      border-left: 3px solid #49627f;
+      border-radius: 7px;
+      padding: 11px;
+      color: #b8c3d2;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* API / PERFORMANCE */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .panel {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 14px;
+      padding: 17px;
+    }
+
+    .panel h3 {
+      margin-bottom: 14px;
+      font-size: 16px;
+    }
+
+    .info-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 0;
-      font-size: 13px;
-    }
-
-    .analysis-row span:first-child {
-      color: #9ca3af;
-    }
-
-    .message {
-      margin-top: 15px;
-      padding: 12px;
-      border-radius: 8px;
-      background: #0b1220;
-      color: #d1d5db;
-      font-size: 13px;
-    }
-
-    .performance {
-      margin-top: 20px;
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-    }
-
-    .performance-box {
-      background: #111827;
-      border: 1px solid #263244;
-      border-radius: 10px;
-      padding: 15px;
-      text-align: center;
-    }
-
-    .performance-box small {
-      display: block;
-      color: #9ca3af;
-      margin-bottom: 5px;
-    }
-
-    .performance-box strong {
-      font-size: 20px;
-    }
-
-    .footer {
-      text-align: center;
-      color: #6b7280;
-      padding: 30px 10px;
+      gap: 15px;
+      padding: 9px 0;
+      border-bottom: 1px solid #182331;
       font-size: 12px;
     }
 
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #9ca3af;
+    .info-row:last-child {
+      border-bottom: none;
     }
 
-    @media (max-width: 850px) {
-      .top-grid {
+    .info-row span:first-child {
+      color: #7f8da3;
+    }
+
+    .info-row span:last-child {
+      text-align: right;
+      font-weight: bold;
+      word-break: break-word;
+    }
+
+    .error {
+      color: #ff6670 !important;
+    }
+
+    .good {
+      color: #39e58c !important;
+    }
+
+    .warning {
+      color: #ffbd4a !important;
+    }
+
+    /* LOADING */
+    .loading {
+      text-align: center;
+      padding: 50px 20px;
+      color: #7f8da3;
+    }
+
+    .error-box {
+      background: #211116;
+      border: 1px solid #71313a;
+      color: #ff7880;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+
+    /* FOOTER */
+    .footer {
+      text-align: center;
+      color: #59677a;
+      font-size: 11px;
+      padding: 20px 0 8px;
+    }
+
+    /* MOBILE */
+    @media (max-width: 900px) {
+      .summary {
         grid-template-columns: repeat(2, 1fr);
       }
 
@@ -331,205 +496,191 @@
         grid-template-columns: 1fr;
       }
 
-      .performance {
-        grid-template-columns: repeat(2, 1fr);
+      .bottom-grid {
+        grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 500px) {
+    @media (max-width: 600px) {
       .container {
+        padding: 10px;
+      }
+
+      .header {
+        padding: 15px;
+      }
+
+      .brand h1 {
+        font-size: 21px;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .summary-card {
         padding: 12px;
       }
 
-      .top-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
+      .summary-card .value {
+        font-size: 17px;
       }
 
-      .card {
+      .pair-header {
+        padding: 14px;
+      }
+
+      .pair-name {
+        font-size: 18px;
+      }
+
+      .pair-body {
         padding: 12px;
       }
 
-      .card-value {
-        font-size: 16px;
-      }
-
-      .trade-grid {
-        grid-template-columns: 1fr;
+      .price-row {
+        grid-template-columns: repeat(2, 1fr);
       }
 
       .timeframes {
         grid-template-columns: 1fr;
       }
 
-      .performance {
-        grid-template-columns: 1fr 1fr;
+      .analysis {
+        grid-template-columns: 1fr;
+      }
+
+      .system-status {
+        width: 100%;
+      }
+
+      .pill {
+        flex: 1;
+        text-align: center;
       }
     }
-  </style>
-</head>
+  </style></head><body><div class="container">  <!-- HEADER -->  <header class="header">
+    <div class="brand">
+      <h1>Trading Cloud Monitor</h1>
+      <p>12H + 1H + 5M Multi-Timeframe Signal Engine</p>
+    </div><div class="system-status">
+  <div id="onlinePill" class="pill">● CHECKING</div>
+  <div id="marketPill" class="pill">MARKET: CHECKING</div>
+</div>
 
-<body>
+  </header>  <!-- SUMMARY -->  <section class="summary"><div class="summary-card">
+  <div class="label">LAST SCAN</div>
+  <div id="lastScan" class="value">—</div>
+</div>
 
-<header>
-  <h1>📊 Trading Cloud Monitor</h1>
-  <p>12H + 1H + 5M Multi-Timeframe Trading Engine</p>
-</header>
+<div class="summary-card">
+  <div class="label">TIMEFRAME</div>
+  <div id="timeframe" class="value">5min</div>
+</div>
 
-<div class="container">
+<div class="summary-card">
+  <div class="label">TOTAL SIGNALS</div>
+  <div id="totalSignals" class="value">0</div>
+</div>
 
-  <!-- TOP STATUS -->
+<div class="summary-card">
+  <div class="label">WIN RATE</div>
+  <div id="winRate" class="value">0%</div>
+</div>
 
-  <div class="top-grid">
+  </section>  <!-- ALERT CONTROL -->  <section class="controls"><div>
+  <div class="control-title">Telegram Trading Alerts</div>
+  <div class="control-subtitle">
+    Enable or disable automatic Telegram signals
+  </div>
+</div>
 
-    <div class="card">
-      <div class="card-title">SYSTEM</div>
-      <div id="systemStatus" class="card-value online">
-        ONLINE
-      </div>
-    </div>
+<div class="toggle-wrap">
 
-    <div class="card">
-      <div class="card-title">MARKET</div>
-      <div id="marketStatus" class="card-value">
-        —
-      </div>
-    </div>
+  <span id="alertStatus">OFF</span>
 
-    <div class="card">
-      <div class="card-title">TIMEFRAME</div>
-      <div id="timeframe" class="card-value">
-        5M
-      </div>
-    </div>
+  <label class="switch">
+    <input
+      type="checkbox"
+      id="alertToggle"
+      onchange="toggleAlerts()"
+    >
+    <span class="slider"></span>
+  </label>
 
-    <div class="card">
-      <div class="card-title">LAST SCAN</div>
-      <div id="lastScan" class="card-value">
-        —
-      </div>
-    </div>
+</div>
 
+  </section>  <div id="globalError"></div>  <!-- PAIRS -->  <h2 class="section-title">Market Signals</h2>  <section id="pairs" class="pairs">
+    <div class="loading">Loading market data...</div>
+  </section>  <!-- BOTTOM -->  <section class="bottom-grid"><!-- PERFORMANCE -->
+<div class="panel">
+  <h3>Performance</h3>
+
+  <div class="info-row">
+    <span>Total Signals</span>
+    <span id="perfTotal">0</span>
   </div>
 
-  <!-- TELEGRAM ALERT CONTROL -->
-
-  <div class="card" style="margin-bottom:20px;">
-
-    <div class="alert-box">
-
-      <div class="alert-text">
-
-        <strong>📱 Telegram Alerts</strong>
-
-        <span id="alertStatusText">
-          Checking alert status...
-        </span>
-
-      </div>
-
-      <label class="switch">
-
-        <input
-          type="checkbox"
-          id="alertToggle"
-          onchange="toggleAlerts()"
-        >
-
-        <span class="slider"></span>
-
-      </label>
-
-    </div>
-
+  <div class="info-row">
+    <span>Buy Signals</span>
+    <span id="perfBuys" class="good">0</span>
   </div>
 
-  <!-- API STATUS -->
-
-  <div class="card" style="margin-bottom:20px;">
-
-    <div class="alert-box">
-
-      <div class="alert-text">
-
-        <strong>🔌 Twelve Data API</strong>
-
-        <span id="apiStatus">
-          Checking...
-        </span>
-
-      </div>
-
-      <div id="apiRequests">
-        0 requests
-      </div>
-
-    </div>
-
+  <div class="info-row">
+    <span>Sell Signals</span>
+    <span id="perfSells" class="error">0</span>
   </div>
 
-  <!-- PAIRS -->
-
-  <div id="pairsContainer" class="pairs">
-
-    <div class="loading">
-      Loading market data...
-    </div>
-
+  <div class="info-row">
+    <span>Wins</span>
+    <span id="perfWins" class="good">0</span>
   </div>
 
-  <!-- PERFORMANCE -->
-
-  <h3 style="margin-top:30px;">
-    📈 Performance
-  </h3>
-
-  <div class="performance">
-
-    <div class="performance-box">
-      <small>Total Signals</small>
-      <strong id="totalSignals">0</strong>
-    </div>
-
-    <div class="performance-box">
-      <small>BUY</small>
-      <strong id="buys">0</strong>
-    </div>
-
-    <div class="performance-box">
-      <small>SELL</small>
-      <strong id="sells">0</strong>
-    </div>
-
-    <div class="performance-box">
-      <small>Wins</small>
-      <strong id="wins">0</strong>
-    </div>
-
-    <div class="performance-box">
-      <small>Losses</small>
-      <strong id="losses">0</strong>
-    </div>
-
-  </div>
-
-  <div class="footer">
-    Trading Cloud Monitor • Automated market monitoring
+  <div class="info-row">
+    <span>Losses</span>
+    <span id="perfLosses" class="error">0</span>
   </div>
 
 </div>
 
+<!-- API -->
+<div class="panel">
+  <h3>API / System</h3>
 
-<script>
+  <div class="info-row">
+    <span>API Status</span>
+    <span id="apiStatus">—</span>
+  </div>
 
-  /*
-  ========================================================
-  HELPERS
-  ========================================================
-  */
+  <div class="info-row">
+    <span>Total Requests</span>
+    <span id="apiRequests">0</span>
+  </div>
+
+  <div class="info-row">
+    <span>Requests This Scan</span>
+    <span id="apiScanRequests">0</span>
+  </div>
+
+  <div class="info-row">
+    <span>Cooldown</span>
+    <span id="apiCooldown">—</span>
+  </div>
+
+  <div class="info-row">
+    <span>Last Error</span>
+    <span id="apiError">None</span>
+  </div>
+
+</div>
+
+  </section>  <div class="footer">
+    Trading Cloud Monitor • Auto refresh every 5 seconds
+  </div></div><script>
+
+  let currentAlertsEnabled = true;
 
   function escapeHtml(value) {
-
     if (value === null || value === undefined) {
       return "—";
     }
@@ -542,99 +693,181 @@
       .replace(/'/g, "&#039;");
   }
 
-
-  function trendClass(trend) {
-
-    if (!trend) {
-      return "unknown";
-    }
+  function formatNumber(value, decimals = 2) {
 
     if (
-      trend.toUpperCase()
-        .includes("BULLISH")
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      Number.isNaN(Number(value))
     ) {
-      return "bullish";
-    }
-
-    if (
-      trend.toUpperCase()
-        .includes("BEARISH")
-    ) {
-      return "bearish";
-    }
-
-    if (
-      trend.toUpperCase()
-        .includes("NEUTRAL")
-    ) {
-      return "neutral";
-    }
-
-    return "unknown";
-  }
-
-
-  function statusClass(status) {
-
-    if (status === "BUY") {
-      return "status-buy";
-    }
-
-    if (status === "SELL") {
-      return "status-sell";
-    }
-
-    if (status === "OFFLINE") {
-      return "status-offline";
-    }
-
-    return "status-wait";
-  }
-
-
-  function formatTime(date) {
-
-    if (!date) {
       return "—";
     }
 
-    try {
-
-      return new Date(date)
-        .toLocaleString();
-
-    } catch {
-      return date;
-    }
+    return Number(value).toFixed(decimals);
   }
 
+  function formatDate(value) {
 
-  /*
-  ========================================================
-  RENDER PAIR
-  ========================================================
-  */
+    if (!value) {
+      return "—";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return escapeHtml(value);
+    }
+
+    return date.toLocaleString();
+  }
+
+  function trendClass(trend) {
+
+    const t = String(trend || "").toUpperCase();
+
+    if (t.includes("BULL")) {
+      return "bullish";
+    }
+
+    if (t.includes("BEAR")) {
+      return "bearish";
+    }
+
+    return "neutral";
+  }
+
+  function statusClass(status) {
+
+    const s = String(status || "WAIT").toUpperCase();
+
+    if (s === "BUY") return "buy";
+    if (s === "SELL") return "sell";
+    if (s === "OFFLINE") return "offline";
+
+    return "wait";
+  }
+
+  function scoreClass(score) {
+
+    const n = Number(score || 0);
+
+    if (n >= 4) return "score-high";
+    if (n >= 2) return "score-medium";
+
+    return "score-low";
+  }
+
+  function renderTimeframe(name, data) {
+
+    data = data || {};
+
+    const trend = data.trend || "NEUTRAL";
+    const rsi = data.rsi;
+
+    return `
+      <div class="tf">
+        <div class="tf-title">${escapeHtml(name)}</div>
+
+        <div class="tf-trend ${trendClass(trend)}">
+          ${escapeHtml(trend)}
+        </div>
+
+        <div class="tf-rsi">
+          RSI: ${rsi === null || rsi === undefined ? "—" : formatNumber(rsi, 1)}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAnalysis(pair) {
+
+    const a = pair.analysis || {};
+
+    return `
+      <div class="analysis">
+
+        <div class="analysis-item">
+          <div class="label">Direction</div>
+          <div class="value">${escapeHtml(a.direction)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">12H SMC</div>
+          <div class="value">${escapeHtml(a.h12SMC)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">1H SMC</div>
+          <div class="value">${escapeHtml(a.h1SMC)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Breakout</div>
+          <div class="value">${escapeHtml(a.breakout)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Rejection</div>
+          <div class="value">${escapeHtml(a.rejection)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Location</div>
+          <div class="value">${escapeHtml(a.location)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Extended</div>
+          <div class="value">${escapeHtml(a.extended)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Structure</div>
+          <div class="value">${escapeHtml(a.structure)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">BOS</div>
+          <div class="value">${escapeHtml(a.bos)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">CHoCH</div>
+          <div class="value">${escapeHtml(a.choch)}</div>
+        </div>
+
+        <div class="analysis-item">
+          <div class="label">Liquidity</div>
+          <div class="value">${escapeHtml(a.liquidity)}</div>
+        </div>
+
+      </div>
+    `;
+  }
 
   function renderPair(pair) {
 
-    const tf =
-      pair.timeframes || {};
+    if (!pair) {
+      return `
+        <div class="pair-card">
+          <div class="pair-body">
+            <div class="loading">No data available</div>
+          </div>
+        </div>
+      `;
+    }
 
-    const h12 =
-      tf.h12 || {};
+    const status = String(pair.status || "WAIT").toUpperCase();
 
-    const h1 =
-      tf.h1 || {};
+    const timeframes = pair.timeframes || {};
 
-    const m5 =
-      tf.m5 || {};
-
-    const analysis =
-      pair.analysis || {};
+    const score = pair.score === null || pair.score === undefined
+      ? 0
+      : Number(pair.score);
 
     return `
-
-      <div class="card">
+      <article class="pair-card">
 
         <div class="pair-header">
 
@@ -642,516 +875,364 @@
             ${escapeHtml(pair.symbol)}
           </div>
 
-          <div class="status ${statusClass(pair.status)}">
-            ${escapeHtml(pair.status)}
+          <div class="status ${statusClass(status)}">
+            ${escapeHtml(status)}
           </div>
 
         </div>
 
-        <div class="price">
-          ${escapeHtml(pair.price)}
-        </div>
+        <div class="pair-body">
 
-        <div class="trade-grid">
+          <div class="price-row">
 
-          <div class="trade-box">
-            <small>Entry</small>
-            <strong>
-              ${escapeHtml(pair.entry)}
-            </strong>
-          </div>
-
-          <div class="trade-box">
-            <small>Stop Loss</small>
-            <strong>
-              ${escapeHtml(pair.stopLoss)}
-            </strong>
-          </div>
-
-          <div class="trade-box">
-            <small>Take Profit</small>
-            <strong>
-              ${escapeHtml(pair.takeProfit)}
-            </strong>
-          </div>
-
-        </div>
-
-        <div>
-
-          <strong>
-            ⭐ Score:
-            ${escapeHtml(pair.score)}/5
-          </strong>
-
-        </div>
-
-        <div class="timeframes">
-
-          <div class="tf">
-
-            <div class="tf-title">
-              12H
+            <div class="price-box">
+              <span>PRICE</span>
+              <strong class="price-main">
+                ${formatNumber(pair.price, 4)}
+              </strong>
             </div>
 
-            <div class="tf-trend ${trendClass(h12.trend)}">
-              ${escapeHtml(h12.trend)}
+            <div class="price-box">
+              <span>ENTRY</span>
+              <strong>
+                ${formatNumber(pair.entry, 4)}
+              </strong>
             </div>
 
-            <small>
-              RSI:
-              ${escapeHtml(h12.rsi)}
-            </small>
+            <div class="price-box">
+              <span>STOP LOSS</span>
+              <strong class="sl">
+                ${formatNumber(pair.stopLoss, 4)}
+              </strong>
+            </div>
+
+            <div class="price-box">
+              <span>TAKE PROFIT</span>
+              <strong class="tp">
+                ${formatNumber(pair.takeProfit, 4)}
+              </strong>
+            </div>
 
           </div>
 
+          <div class="score-row">
 
-          <div class="tf">
-
-            <div class="tf-title">
-              1H
+            <div class="score-label">
+              SIGNAL SCORE
             </div>
 
-            <div class="tf-trend ${trendClass(h1.trend)}">
-              ${escapeHtml(h1.trend)}
+            <div class="score ${scoreClass(score)}">
+              ${escapeHtml(score)}/5
             </div>
-
-            <small>
-              RSI:
-              ${escapeHtml(h1.rsi)}
-            </small>
 
           </div>
 
+          <div class="timeframes">
 
-          <div class="tf">
+            ${renderTimeframe("12H", timeframes.h12)}
+            ${renderTimeframe("1H", timeframes.h1)}
+            ${renderTimeframe("5M", timeframes.m5)}
 
-            <div class="tf-title">
-              5M
-            </div>
+          </div>
 
-            <div class="tf-trend ${trendClass(m5.trend)}">
-              ${escapeHtml(m5.trend)}
-            </div>
+          ${renderAnalysis(pair)}
 
-            <small>
-              RSI:
-              ${escapeHtml(m5.rsi)}
-            </small>
-
+          <div class="message">
+            ${escapeHtml(pair.message || "Waiting for confirmation...")}
           </div>
 
         </div>
 
-
-        <div class="analysis">
-
-          <div class="analysis-row">
-            <span>Direction</span>
-            <strong>
-              ${escapeHtml(analysis.direction)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>12H SMC</span>
-            <strong>
-              ${escapeHtml(analysis.h12SMC)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>1H SMC</span>
-            <strong>
-              ${escapeHtml(analysis.h1SMC)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Structure</span>
-            <strong>
-              ${escapeHtml(analysis.structure)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>BOS</span>
-            <strong>
-              ${escapeHtml(analysis.bos)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>CHoCH</span>
-            <strong>
-              ${escapeHtml(analysis.choch)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Liquidity</span>
-            <strong>
-              ${escapeHtml(analysis.liquidity)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Location</span>
-            <strong>
-              ${escapeHtml(analysis.location)}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Breakout</span>
-            <strong>
-              ${analysis.breakout ? "YES" : "NO"}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Rejection</span>
-            <strong>
-              ${analysis.rejection ? "YES" : "NO"}
-            </strong>
-          </div>
-
-          <div class="analysis-row">
-            <span>Extended</span>
-            <strong>
-              ${analysis.extended ? "YES" : "NO"}
-            </strong>
-          </div>
-
-        </div>
-
-
-        <div class="message">
-
-          ${escapeHtml(pair.message)}
-
-        </div>
-
-
-        <div style="
-          margin-top:10px;
-          color:#6b7280;
-          font-size:11px;
-        ">
-
-          Updated:
-          ${escapeHtml(
-            formatTime(pair.updated)
-          )}
-
-        </div>
-
-      </div>
-
+      </article>
     `;
   }
 
+  function renderPairs(pairs) {
 
-  /*
-  ========================================================
-  LOAD STATUS
-  ========================================================
-  */
+    const container = document.getElementById("pairs");
+
+    if (!pairs || typeof pairs !== "object") {
+      container.innerHTML = `
+        <div class="pair-card">
+          <div class="loading">
+            No pair data received from server.
+          </div>
+        </div>
+      `;
+
+      return;
+    }
+
+    const preferredOrder = [
+      "XAU/USD",
+      "GBP/JPY"
+    ];
+
+    let html = "";
+
+    preferredOrder.forEach(symbol => {
+
+      if (pairs[symbol]) {
+        html += renderPair(pairs[symbol]);
+      }
+
+    });
+
+    Object.keys(pairs).forEach(symbol => {
+
+      if (!preferredOrder.includes(symbol)) {
+        html += renderPair(pairs[symbol]);
+      }
+
+    });
+
+    if (!html) {
+      html = `
+        <div class="pair-card">
+          <div class="loading">
+            No market pairs available.
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+  }
+
+  function renderStatus(data) {
+
+    /* ONLINE */
+
+    const onlinePill = document.getElementById("onlinePill");
+
+    if (data.online) {
+
+      onlinePill.textContent = "● ONLINE";
+      onlinePill.className = "pill online";
+
+    } else {
+
+      onlinePill.textContent = "● OFFLINE";
+      onlinePill.className = "pill offline";
+
+    }
+
+    /* MARKET */
+
+    const marketPill = document.getElementById("marketPill");
+
+    if (data.marketOpen) {
+
+      marketPill.textContent =
+        "MARKET: " + String(data.marketStatus || "OPEN").toUpperCase();
+
+      marketPill.className = "pill open";
+
+    } else {
+
+      marketPill.textContent =
+        "MARKET: " + String(data.marketStatus || "CLOSED").toUpperCase();
+
+      marketPill.className = "pill closed";
+
+    }
+
+    /* GENERAL */
+
+    document.getElementById("lastScan").textContent =
+      formatDate(data.lastScan);
+
+    document.getElementById("timeframe").textContent =
+      data.timeframe || "5min";
+
+    /* PERFORMANCE */
+
+    const performance = data.performance || {};
+
+    const total = Number(performance.totalSignals || 0);
+    const wins = Number(performance.wins || 0);
+    const losses = Number(performance.losses || 0);
+
+    document.getElementById("totalSignals").textContent = total;
+
+    document.getElementById("perfTotal").textContent = total;
+    document.getElementById("perfBuys").textContent =
+      Number(performance.buys || 0);
+
+    document.getElementById("perfSells").textContent =
+      Number(performance.sells || 0);
+
+    document.getElementById("perfWins").textContent = wins;
+    document.getElementById("perfLosses").textContent = losses;
+
+    const completed = wins + losses;
+
+    const winRate =
+      completed > 0
+        ? ((wins / completed) * 100).toFixed(1)
+        : "0";
+
+    document.getElementById("winRate").textContent =
+      winRate + "%";
+
+    /* API */
+
+    const api = data.api || {};
+
+    const apiStatus = document.getElementById("apiStatus");
+
+    apiStatus.textContent =
+      api.status || "UNKNOWN";
+
+    apiStatus.className =
+      api.status === "CONFIGURED"
+        ? "good"
+        : api.status === "MISSING_API_KEY"
+          ? "error"
+          : "warning";
+
+    document.getElementById("apiRequests").textContent =
+      api.totalRequests ?? 0;
+
+    document.getElementById("apiScanRequests").textContent =
+      api.requestsThisScan ?? 0;
+
+    /* COOLDOWN */
+
+    const cooldown = document.getElementById("apiCooldown");
+
+    if (api.cooldownUntil) {
+
+      cooldown.textContent =
+        formatDate(api.cooldownUntil);
+
+      cooldown.className = "warning";
+
+    } else {
+
+      cooldown.textContent = "None";
+      cooldown.className = "good";
+
+    }
+
+    /* ERROR */
+
+    const apiError = document.getElementById("apiError");
+
+    if (api.lastError) {
+
+      apiError.textContent =
+        api.lastError;
+
+      apiError.className = "error";
+
+    } else {
+
+      apiError.textContent = "None";
+      apiError.className = "good";
+
+    }
+
+    /* ALERTS */
+
+    if (typeof data.alerts === "boolean") {
+      setAlertUI(data.alerts);
+    }
+
+    renderPairs(data.pairs);
+  }
+
+  function setAlertUI(enabled) {
+
+    currentAlertsEnabled = Boolean(enabled);
+
+    const toggle =
+      document.getElementById("alertToggle");
+
+    const label =
+      document.getElementById("alertStatus");
+
+    toggle.checked = currentAlertsEnabled;
+
+    if (currentAlertsEnabled) {
+
+      label.textContent = "ON";
+      label.className = "good";
+
+    } else {
+
+      label.textContent = "OFF";
+      label.className = "error";
+
+    }
+  }
 
   async function loadStatus() {
 
     try {
 
       const response =
-        await fetch(
-          "/api/status",
-          {
-            cache: "no-store"
-          }
-        );
+        await fetch("/api/status", {
+          cache: "no-store"
+        });
 
       if (!response.ok) {
         throw new Error(
-          "Status request failed"
+          "Server returned HTTP " + response.status
         );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
+      document.getElementById("globalError").innerHTML = "";
 
-      /*
-      SYSTEM
-      */
-
-      const system =
-        document.getElementById(
-          "systemStatus"
-        );
-
-      if (data.online) {
-
-        system.textContent =
-          "ONLINE";
-
-        system.className =
-          "card-value online";
-
-      } else {
-
-        system.textContent =
-          "OFFLINE";
-
-        system.className =
-          "card-value offline";
-
-      }
-
-
-      /*
-      MARKET
-      */
-
-      const market =
-        document.getElementById(
-          "marketStatus"
-        );
-
-      market.textContent =
-        data.marketStatus || "—";
-
-      market.className =
-        "card-value " +
-        (
-          data.marketOpen
-            ? "open"
-            : "closed"
-        );
-
-
-      /*
-      TIMEFRAME
-      */
-
-      document.getElementById(
-        "timeframe"
-      ).textContent =
-        data.timeframe || "5min";
-
-
-      /*
-      LAST SCAN
-      */
-
-      document.getElementById(
-        "lastScan"
-      ).textContent =
-        formatTime(
-          data.lastScan
-        );
-
-
-      /*
-      API
-      */
-
-      const api =
-        data.api || {};
-
-      document.getElementById(
-        "apiStatus"
-      ).textContent =
-        api.status || "UNKNOWN";
-
-      document.getElementById(
-        "apiRequests"
-      ).textContent =
-        `${api.totalRequests || 0} requests`;
-
-
-      /*
-      ALERT TOGGLE
-      */
-
-      const toggle =
-        document.getElementById(
-          "alertToggle"
-        );
-
-      toggle.checked =
-        Boolean(data.alerts);
-
-      updateAlertText(
-        Boolean(data.alerts)
-      );
-
-
-      /*
-      PAIRS
-      */
-
-      const container =
-        document.getElementById(
-          "pairsContainer"
-        );
-
-      const pairs =
-        data.pairs || {};
-
-      const names =
-        Object.keys(pairs);
-
-      if (!names.length) {
-
-        container.innerHTML =
-          `<div class="loading">
-             No pair data available.
-           </div>`;
-
-      } else {
-
-        container.innerHTML =
-          names
-            .map(
-              name =>
-                renderPair(
-                  pairs[name]
-                )
-            )
-            .join("");
-
-      }
-
-
-      /*
-      PERFORMANCE
-      */
-
-      const performance =
-        data.performance || {};
-
-      document.getElementById(
-        "totalSignals"
-      ).textContent =
-        performance.totalSignals || 0;
-
-      document.getElementById(
-        "buys"
-      ).textContent =
-        performance.buys || 0;
-
-      document.getElementById(
-        "sells"
-      ).textContent =
-        performance.sells || 0;
-
-      document.getElementById(
-        "wins"
-      ).textContent =
-        performance.wins || 0;
-
-      document.getElementById(
-        "losses"
-      ).textContent =
-        performance.losses || 0;
-
+      renderStatus(data);
 
     } catch (error) {
 
-      console.error(
-        "Dashboard error:",
-        error
-      );
+      document.getElementById("globalError").innerHTML = `
+        <div class="error-box">
+          Unable to connect to Trading Cloud Monitor:
+          ${escapeHtml(error.message)}
+        </div>
+      `;
 
-      document.getElementById(
-        "systemStatus"
-      ).textContent =
-        "CONNECTION ERROR";
+      const onlinePill =
+        document.getElementById("onlinePill");
 
-      document.getElementById(
-        "systemStatus"
-      ).className =
-        "card-value offline";
+      onlinePill.textContent = "● CONNECTION ERROR";
+      onlinePill.className = "pill offline";
 
     }
 
   }
-
-
-  /*
-  ========================================================
-  ALERT TEXT
-  ========================================================
-  */
-
-  function updateAlertText(enabled) {
-
-    const text =
-      document.getElementById(
-        "alertStatusText"
-      );
-
-    if (enabled) {
-
-      text.textContent =
-        "Telegram alerts are ON — new BUY/SELL signals can be sent.";
-
-    } else {
-
-      text.textContent =
-        "Telegram alerts are OFF — no Telegram signal will be sent.";
-
-    }
-
-  }
-
-
-  /*
-  ========================================================
-  TOGGLE TELEGRAM ALERTS
-  ========================================================
-  */
 
   async function toggleAlerts() {
 
     const toggle =
-      document.getElementById(
-        "alertToggle"
-      );
+      document.getElementById("alertToggle");
 
-    const enabled =
+    const requestedState =
       toggle.checked;
 
-
-    /*
-    Disable immediately in UI
-    */
-
-    updateAlertText(
-      enabled
-    );
-
+    toggle.disabled = true;
 
     try {
 
       const response =
-        await fetch(
-          "/api/alerts",
-          {
-            method: "POST",
+        await fetch("/api/alerts", {
 
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
+          method: "POST",
 
-            body:
-              JSON.stringify({
-                enabled
-              })
-          }
-        );
+          headers: {
+            "Content-Type": "application/json"
+          },
 
+          body: JSON.stringify({
+            enabled: requestedState
+          })
+
+        });
 
       if (!response.ok) {
         throw new Error(
@@ -1159,68 +1240,47 @@
         );
       }
 
-
-      const data =
+      const result =
         await response.json();
 
+      const enabled =
+        typeof result.enabled === "boolean"
+          ? result.enabled
+          : requestedState;
 
-      toggle.checked =
-        Boolean(data.enabled);
-
-      updateAlertText(
-        Boolean(data.enabled)
-      );
-
+      setAlertUI(enabled);
 
     } catch (error) {
 
-      console.error(
-        "Alert toggle error:",
-        error
-      );
+      setAlertUI(currentAlertsEnabled);
 
-      /*
-      Revert switch if server
-      could not be updated.
-      */
+      document.getElementById("globalError").innerHTML = `
+        <div class="error-box">
+          Telegram alert setting could not be changed.
+          ${escapeHtml(error.message)}
+        </div>
+      `;
 
-      toggle.checked =
-        !enabled;
+    } finally {
 
-      updateAlertText(
-        !enabled
-      );
-
-      alert(
-        "Could not change Telegram alert setting."
-      );
+      toggle.disabled = false;
 
     }
 
   }
 
-
-  /*
-  ========================================================
-  INITIAL LOAD
-  ========================================================
-  */
+  /* INITIAL LOAD */
 
   loadStatus();
 
-
   /*
-  ========================================================
-  AUTO REFRESH
-  ========================================================
+    Refresh the dashboard every 5 seconds.
+
+    This only requests /api/status from your own server.
+    It does NOT make extra Twelve Data requests.
   */
 
-  setInterval(
-    loadStatus,
-    10000
-  );
+  setInterval(loadStatus, 5000);
 
-</script>
-
-</body>
+</script></body>
 </html>
