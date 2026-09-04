@@ -1,8 +1,11 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trading Cloud Monitor</title>  <style>
+  <title>Trading Cloud Monitor</title>
+
+  <style>
     * {
       box-sizing: border-box;
       margin: 0;
@@ -106,6 +109,73 @@
     .summary-card .value {
       font-size: 20px;
       font-weight: bold;
+    }
+
+    /* NEWS PROTECTION */
+    .news-panel {
+      background: #0d131d;
+      border: 1px solid #1d2938;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .news-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .news-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .news-source {
+      color: #7f8da3;
+      font-size: 11px;
+    }
+
+    .news-status {
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: bold;
+      border: 1px solid #465263;
+      background: #111a27;
+    }
+
+    .news-clear {
+      color: #39e58c;
+      border-color: #1b7549;
+    }
+
+    .news-before,
+    .news-after,
+    .news-settling {
+      color: #ffbd4a;
+      border-color: #795b22;
+    }
+
+    .news-event {
+      background: #111a27;
+      border: 1px solid #202d3e;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .news-event strong {
+      color: #ffffff;
+    }
+
+    .news-event .muted {
+      color: #7f8da3;
     }
 
     /* CONTROLS */
@@ -395,6 +465,54 @@
       word-break: break-word;
     }
 
+    /* NEWS / SMC SETUP */
+    .setup-panel {
+      background: #101824;
+      border: 1px solid #202d3e;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+
+    .setup-title {
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .setup-item {
+      background: #111a27;
+      border-radius: 8px;
+      padding: 9px;
+      border: 1px solid #202d3e;
+    }
+
+    .setup-item span {
+      display: block;
+      color: #748197;
+      font-size: 9px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .setup-item strong {
+      font-size: 11px;
+    }
+
+    .confirmed {
+      color: #39e58c;
+    }
+
+    .not-confirmed {
+      color: #ffbd4a;
+    }
+
     /* MESSAGE */
     .message {
       background: #101824;
@@ -444,843 +562,4 @@
     }
 
     .info-row span:last-child {
-      text-align: right;
-      font-weight: bold;
-      word-break: break-word;
-    }
-
-    .error {
-      color: #ff6670 !important;
-    }
-
-    .good {
-      color: #39e58c !important;
-    }
-
-    .warning {
-      color: #ffbd4a !important;
-    }
-
-    /* LOADING */
-    .loading {
-      text-align: center;
-      padding: 50px 20px;
-      color: #7f8da3;
-    }
-
-    .error-box {
-      background: #211116;
-      border: 1px solid #71313a;
-      color: #ff7880;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      font-size: 13px;
-    }
-
-    /* FOOTER */
-    .footer {
-      text-align: center;
-      color: #59677a;
-      font-size: 11px;
-      padding: 20px 0 8px;
-    }
-
-    /* MOBILE */
-    @media (max-width: 900px) {
-      .summary {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .pairs {
-        grid-template-columns: 1fr;
-      }
-
-      .bottom-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .container {
-        padding: 10px;
-      }
-
-      .header {
-        padding: 15px;
-      }
-
-      .brand h1 {
-        font-size: 21px;
-      }
-
-      .summary {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .summary-card {
-        padding: 12px;
-      }
-
-      .summary-card .value {
-        font-size: 17px;
-      }
-
-      .pair-header {
-        padding: 14px;
-      }
-
-      .pair-name {
-        font-size: 18px;
-      }
-
-      .pair-body {
-        padding: 12px;
-      }
-
-      .price-row {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .timeframes {
-        grid-template-columns: 1fr;
-      }
-
-      .analysis {
-        grid-template-columns: 1fr;
-      }
-
-      .system-status {
-        width: 100%;
-      }
-
-      .pill {
-        flex: 1;
-        text-align: center;
-      }
-    }
-  </style></head><body><div class="container">  <!-- HEADER -->  <header class="header">
-    <div class="brand">
-      <h1>Trading Cloud Monitor</h1>
-      <p>12H + 1H + 5M Multi-Timeframe Signal Engine</p>
-    </div><div class="system-status">
-  <div id="onlinePill" class="pill">● CHECKING</div>
-  <div id="marketPill" class="pill">MARKET: CHECKING</div>
-</div>
-
-  </header>  <!-- SUMMARY -->  <section class="summary"><div class="summary-card">
-  <div class="label">LAST SCAN</div>
-  <div id="lastScan" class="value">—</div>
-</div>
-
-<div class="summary-card">
-  <div class="label">TIMEFRAME</div>
-  <div id="timeframe" class="value">5min</div>
-</div>
-
-<div class="summary-card">
-  <div class="label">TOTAL SIGNALS</div>
-  <div id="totalSignals" class="value">0</div>
-</div>
-
-<div class="summary-card">
-  <div class="label">WIN RATE</div>
-  <div id="winRate" class="value">0%</div>
-</div>
-
-  </section>  <!-- ALERT CONTROL -->  <section class="controls"><div>
-  <div class="control-title">Telegram Trading Alerts</div>
-  <div class="control-subtitle">
-    Enable or disable automatic Telegram signals
-  </div>
-</div>
-
-<div class="toggle-wrap">
-
-  <span id="alertStatus">OFF</span>
-
-  <label class="switch">
-    <input
-      type="checkbox"
-      id="alertToggle"
-      onchange="toggleAlerts()"
-    >
-    <span class="slider"></span>
-  </label>
-
-</div>
-
-  </section>  <div id="globalError"></div>  <!-- PAIRS -->  <h2 class="section-title">Market Signals</h2>  <section id="pairs" class="pairs">
-    <div class="loading">Loading market data...</div>
-  </section>  <!-- BOTTOM -->  <section class="bottom-grid"><!-- PERFORMANCE -->
-<div class="panel">
-  <h3>Performance</h3>
-
-  <div class="info-row">
-    <span>Total Signals</span>
-    <span id="perfTotal">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Buy Signals</span>
-    <span id="perfBuys" class="good">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Sell Signals</span>
-    <span id="perfSells" class="error">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Wins</span>
-    <span id="perfWins" class="good">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Losses</span>
-    <span id="perfLosses" class="error">0</span>
-  </div>
-
-</div>
-
-<!-- API -->
-<div class="panel">
-  <h3>API / System</h3>
-
-  <div class="info-row">
-    <span>API Status</span>
-    <span id="apiStatus">—</span>
-  </div>
-
-  <div class="info-row">
-    <span>Total Requests</span>
-    <span id="apiRequests">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Requests This Scan</span>
-    <span id="apiScanRequests">0</span>
-  </div>
-
-  <div class="info-row">
-    <span>Cooldown</span>
-    <span id="apiCooldown">—</span>
-  </div>
-
-  <div class="info-row">
-    <span>Last Error</span>
-    <span id="apiError">None</span>
-  </div>
-
-</div>
-
-  </section>  <div class="footer">
-    Trading Cloud Monitor • Auto refresh every 5 seconds
-  </div></div><script>
-
-  let currentAlertsEnabled = true;
-
-  function escapeHtml(value) {
-    if (value === null || value === undefined) {
-      return "—";
-    }
-
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function formatNumber(value, decimals = 2) {
-
-    if (
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      Number.isNaN(Number(value))
-    ) {
-      return "—";
-    }
-
-    return Number(value).toFixed(decimals);
-  }
-
-  function formatDate(value) {
-
-    if (!value) {
-      return "—";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return escapeHtml(value);
-    }
-
-    return date.toLocaleString();
-  }
-
-  function trendClass(trend) {
-
-    const t = String(trend || "").toUpperCase();
-
-    if (t.includes("BULL")) {
-      return "bullish";
-    }
-
-    if (t.includes("BEAR")) {
-      return "bearish";
-    }
-
-    return "neutral";
-  }
-
-  function statusClass(status) {
-
-    const s = String(status || "WAIT").toUpperCase();
-
-    if (s === "BUY") return "buy";
-    if (s === "SELL") return "sell";
-    if (s === "OFFLINE") return "offline";
-
-    return "wait";
-  }
-
-  function scoreClass(score) {
-
-    const n = Number(score || 0);
-
-    if (n >= 4) return "score-high";
-    if (n >= 2) return "score-medium";
-
-    return "score-low";
-  }
-
-  function renderTimeframe(name, data) {
-
-    data = data || {};
-
-    const trend = data.trend || "NEUTRAL";
-    const rsi = data.rsi;
-
-    return `
-      <div class="tf">
-        <div class="tf-title">${escapeHtml(name)}</div>
-
-        <div class="tf-trend ${trendClass(trend)}">
-          ${escapeHtml(trend)}
-        </div>
-
-        <div class="tf-rsi">
-          RSI: ${rsi === null || rsi === undefined ? "—" : formatNumber(rsi, 1)}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderAnalysis(pair) {
-
-    const a = pair.analysis || {};
-
-    return `
-      <div class="analysis">
-
-        <div class="analysis-item">
-          <div class="label">Direction</div>
-          <div class="value">${escapeHtml(a.direction)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">12H SMC</div>
-          <div class="value">${escapeHtml(a.h12SMC)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">1H SMC</div>
-          <div class="value">${escapeHtml(a.h1SMC)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Breakout</div>
-          <div class="value">${escapeHtml(a.breakout)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Rejection</div>
-          <div class="value">${escapeHtml(a.rejection)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Location</div>
-          <div class="value">${escapeHtml(a.location)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Extended</div>
-          <div class="value">${escapeHtml(a.extended)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Structure</div>
-          <div class="value">${escapeHtml(a.structure)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">BOS</div>
-          <div class="value">${escapeHtml(a.bos)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">CHoCH</div>
-          <div class="value">${escapeHtml(a.choch)}</div>
-        </div>
-
-        <div class="analysis-item">
-          <div class="label">Liquidity</div>
-          <div class="value">${escapeHtml(a.liquidity)}</div>
-        </div>
-
-      </div>
-    `;
-  }
-
-  function renderPair(pair) {
-
-    if (!pair) {
-      return `
-        <div class="pair-card">
-          <div class="pair-body">
-            <div class="loading">No data available</div>
-          </div>
-        </div>
-      `;
-    }
-
-    const status = String(pair.status || "WAIT").toUpperCase();
-
-    const timeframes = pair.timeframes || {};
-
-    const score = pair.score === null || pair.score === undefined
-      ? 0
-      : Number(pair.score);
-
-    return `
-      <article class="pair-card">
-
-        <div class="pair-header">
-
-          <div class="pair-name">
-            ${escapeHtml(pair.symbol)}
-          </div>
-
-          <div class="status ${statusClass(status)}">
-            ${escapeHtml(status)}
-          </div>
-
-        </div>
-
-        <div class="pair-body">
-
-          <div class="price-row">
-
-            <div class="price-box">
-              <span>PRICE</span>
-              <strong class="price-main">
-                ${formatNumber(pair.price, 4)}
-              </strong>
-            </div>
-
-            <div class="price-box">
-              <span>ENTRY</span>
-              <strong>
-                ${formatNumber(pair.entry, 4)}
-              </strong>
-            </div>
-
-            <div class="price-box">
-              <span>STOP LOSS</span>
-              <strong class="sl">
-                ${formatNumber(pair.stopLoss, 4)}
-              </strong>
-            </div>
-
-            <div class="price-box">
-              <span>TAKE PROFIT</span>
-              <strong class="tp">
-                ${formatNumber(pair.takeProfit, 4)}
-              </strong>
-            </div>
-
-          </div>
-
-          <div class="score-row">
-
-            <div class="score-label">
-              SIGNAL SCORE
-            </div>
-
-            <div class="score ${scoreClass(score)}">
-              ${escapeHtml(score)}/5
-            </div>
-
-          </div>
-
-          <div class="timeframes">
-
-            ${renderTimeframe("12H", timeframes.h12)}
-            ${renderTimeframe("1H", timeframes.h1)}
-            ${renderTimeframe("5M", timeframes.m5)}
-
-          </div>
-
-          ${renderAnalysis(pair)}
-
-          <div class="message">
-            ${escapeHtml(pair.message || "Waiting for confirmation...")}
-          </div>
-
-        </div>
-
-      </article>
-    `;
-  }
-
-  function renderPairs(pairs) {
-
-    const container = document.getElementById("pairs");
-
-    if (!pairs || typeof pairs !== "object") {
-      container.innerHTML = `
-        <div class="pair-card">
-          <div class="loading">
-            No pair data received from server.
-          </div>
-        </div>
-      `;
-
-      return;
-    }
-
-    const preferredOrder = [
-      "XAU/USD",
-      "GBP/JPY"
-    ];
-
-    let html = "";
-
-    preferredOrder.forEach(symbol => {
-
-      if (pairs[symbol]) {
-        html += renderPair(pairs[symbol]);
-      }
-
-    });
-
-    Object.keys(pairs).forEach(symbol => {
-
-      if (!preferredOrder.includes(symbol)) {
-        html += renderPair(pairs[symbol]);
-      }
-
-    });
-
-    if (!html) {
-      html = `
-        <div class="pair-card">
-          <div class="loading">
-            No market pairs available.
-          </div>
-        </div>
-      `;
-    }
-
-    container.innerHTML = html;
-  }
-
-  function renderStatus(data) {
-
-    /* ONLINE */
-
-    const onlinePill = document.getElementById("onlinePill");
-
-    if (data.online) {
-
-      onlinePill.textContent = "● ONLINE";
-      onlinePill.className = "pill online";
-
-    } else {
-
-      onlinePill.textContent = "● OFFLINE";
-      onlinePill.className = "pill offline";
-
-    }
-
-    /* MARKET */
-
-    const marketPill = document.getElementById("marketPill");
-
-    if (data.marketOpen) {
-
-      marketPill.textContent =
-        "MARKET: " + String(data.marketStatus || "OPEN").toUpperCase();
-
-      marketPill.className = "pill open";
-
-    } else {
-
-      marketPill.textContent =
-        "MARKET: " + String(data.marketStatus || "CLOSED").toUpperCase();
-
-      marketPill.className = "pill closed";
-
-    }
-
-    /* GENERAL */
-
-    document.getElementById("lastScan").textContent =
-      formatDate(data.lastScan);
-
-    document.getElementById("timeframe").textContent =
-      data.timeframe || "5min";
-
-    /* PERFORMANCE */
-
-    const performance = data.performance || {};
-
-    const total = Number(performance.totalSignals || 0);
-    const wins = Number(performance.wins || 0);
-    const losses = Number(performance.losses || 0);
-
-    document.getElementById("totalSignals").textContent = total;
-
-    document.getElementById("perfTotal").textContent = total;
-    document.getElementById("perfBuys").textContent =
-      Number(performance.buys || 0);
-
-    document.getElementById("perfSells").textContent =
-      Number(performance.sells || 0);
-
-    document.getElementById("perfWins").textContent = wins;
-    document.getElementById("perfLosses").textContent = losses;
-
-    const completed = wins + losses;
-
-    const winRate =
-      completed > 0
-        ? ((wins / completed) * 100).toFixed(1)
-        : "0";
-
-    document.getElementById("winRate").textContent =
-      winRate + "%";
-
-    /* API */
-
-    const api = data.api || {};
-
-    const apiStatus = document.getElementById("apiStatus");
-
-    apiStatus.textContent =
-      api.status || "UNKNOWN";
-
-    apiStatus.className =
-      api.status === "CONFIGURED"
-        ? "good"
-        : api.status === "MISSING_API_KEY"
-          ? "error"
-          : "warning";
-
-    document.getElementById("apiRequests").textContent =
-      api.totalRequests ?? 0;
-
-    document.getElementById("apiScanRequests").textContent =
-      api.requestsThisScan ?? 0;
-
-    /* COOLDOWN */
-
-    const cooldown = document.getElementById("apiCooldown");
-
-    if (api.cooldownUntil) {
-
-      cooldown.textContent =
-        formatDate(api.cooldownUntil);
-
-      cooldown.className = "warning";
-
-    } else {
-
-      cooldown.textContent = "None";
-      cooldown.className = "good";
-
-    }
-
-    /* ERROR */
-
-    const apiError = document.getElementById("apiError");
-
-    if (api.lastError) {
-
-      apiError.textContent =
-        api.lastError;
-
-      apiError.className = "error";
-
-    } else {
-
-      apiError.textContent = "None";
-      apiError.className = "good";
-
-    }
-
-    /* ALERTS */
-
-    if (typeof data.alerts === "boolean") {
-      setAlertUI(data.alerts);
-    }
-
-    renderPairs(data.pairs);
-  }
-
-  function setAlertUI(enabled) {
-
-    currentAlertsEnabled = Boolean(enabled);
-
-    const toggle =
-      document.getElementById("alertToggle");
-
-    const label =
-      document.getElementById("alertStatus");
-
-    toggle.checked = currentAlertsEnabled;
-
-    if (currentAlertsEnabled) {
-
-      label.textContent = "ON";
-      label.className = "good";
-
-    } else {
-
-      label.textContent = "OFF";
-      label.className = "error";
-
-    }
-  }
-
-  async function loadStatus() {
-
-    try {
-
-      const response =
-        await fetch("/api/status", {
-          cache: "no-store"
-        });
-
-      if (!response.ok) {
-        throw new Error(
-          "Server returned HTTP " + response.status
-        );
-      }
-
-      const data = await response.json();
-
-      document.getElementById("globalError").innerHTML = "";
-
-      renderStatus(data);
-
-    } catch (error) {
-
-      document.getElementById("globalError").innerHTML = `
-        <div class="error-box">
-          Unable to connect to Trading Cloud Monitor:
-          ${escapeHtml(error.message)}
-        </div>
-      `;
-
-      const onlinePill =
-        document.getElementById("onlinePill");
-
-      onlinePill.textContent = "● CONNECTION ERROR";
-      onlinePill.className = "pill offline";
-
-    }
-
-  }
-
-  async function toggleAlerts() {
-
-    const toggle =
-      document.getElementById("alertToggle");
-
-    const requestedState =
-      toggle.checked;
-
-    toggle.disabled = true;
-
-    try {
-
-      const response =
-        await fetch("/api/alerts", {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json"
-          },
-
-          body: JSON.stringify({
-            enabled: requestedState
-          })
-
-        });
-
-      if (!response.ok) {
-        throw new Error(
-          "Unable to update alerts"
-        );
-      }
-
-      const result =
-        await response.json();
-
-      const enabled =
-        typeof result.enabled === "boolean"
-          ? result.enabled
-          : requestedState;
-
-      setAlertUI(enabled);
-
-    } catch (error) {
-
-      setAlertUI(currentAlertsEnabled);
-
-      document.getElementById("globalError").innerHTML = `
-        <div class="error-box">
-          Telegram alert setting could not be changed.
-          ${escapeHtml(error.message)}
-        </div>
-      `;
-
-    } finally {
-
-      toggle.disabled = false;
-
-    }
-
-  }
-
-  /* INITIAL LOAD */
-
-  loadStatus();
-
-  /*
-    Refresh the dashboard every 5 seconds.
-
-    This only requests /api/status from your own server.
-    It does NOT make extra Twelve Data requests.
-  */
-
-  setInterval(loadStatus, 5000);
-
-</script></body>
-</html>
+      text
