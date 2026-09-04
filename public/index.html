@@ -1,565 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trading Cloud Monitor</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      background: #070b12;
-      color: #e8edf5;
-      min-height: 100vh;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 1400px;
-      margin: auto;
-      padding: 18px;
-    }
-
-    /* HEADER */
-    .header {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      flex-wrap: wrap;
-    }
-
-    .brand h1 {
-      font-size: 25px;
-      margin-bottom: 6px;
-    }
-
-    .brand p {
-      color: #7f8da3;
-      font-size: 13px;
-    }
-
-    .system-status {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .pill {
-      padding: 9px 13px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: bold;
-      border: 1px solid #273548;
-      background: #111a27;
-    }
-
-    .pill.online {
-      color: #39e58c;
-      border-color: #1b7549;
-    }
-
-    .pill.offline {
-      color: #ff5d68;
-      border-color: #81333b;
-    }
-
-    .pill.open {
-      color: #39e58c;
-      border-color: #1b7549;
-    }
-
-    .pill.closed {
-      color: #ffbd4a;
-      border-color: #795b22;
-    }
-
-    /* SUMMARY */
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .summary-card {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 14px;
-      padding: 16px;
-    }
-
-    .summary-card .label {
-      color: #7f8da3;
-      font-size: 12px;
-      margin-bottom: 8px;
-    }
-
-    .summary-card .value {
-      font-size: 20px;
-      font-weight: bold;
-    }
-
-    /* NEWS PROTECTION */
-    .news-panel {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .news-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-
-    .news-title {
-      font-size: 16px;
-      font-weight: bold;
-    }
-
-    .news-source {
-      color: #7f8da3;
-      font-size: 11px;
-    }
-
-    .news-status {
-      display: inline-block;
-      padding: 7px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: bold;
-      border: 1px solid #465263;
-      background: #111a27;
-    }
-
-    .news-clear {
-      color: #39e58c;
-      border-color: #1b7549;
-    }
-
-    .news-before,
-    .news-after,
-    .news-settling {
-      color: #ffbd4a;
-      border-color: #795b22;
-    }
-
-    .news-event {
-      background: #111a27;
-      border: 1px solid #202d3e;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    .news-event strong {
-      color: #ffffff;
-    }
-
-    .news-event .muted {
-      color: #7f8da3;
-    }
-
-    /* CONTROLS */
-    .controls {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 14px;
-      padding: 15px;
-      margin-bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      flex-wrap: wrap;
-    }
-
-    .control-title {
-      font-weight: bold;
-    }
-
-    .control-subtitle {
-      color: #7f8da3;
-      font-size: 12px;
-      margin-top: 4px;
-    }
-
-    .toggle-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .switch {
-      position: relative;
-      width: 54px;
-      height: 29px;
-      display: inline-block;
-    }
-
-    .switch input {
-      display: none;
-    }
-
-    .slider {
-      position: absolute;
-      inset: 0;
-      background: #273243;
-      border-radius: 30px;
-      cursor: pointer;
-      transition: .25s;
-    }
-
-    .slider:before {
-      content: "";
-      position: absolute;
-      width: 21px;
-      height: 21px;
-      left: 4px;
-      top: 4px;
-      background: white;
-      border-radius: 50%;
-      transition: .25s;
-    }
-
-    input:checked + .slider {
-      background: #16a765;
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(25px);
-    }
-
-    #alertStatus {
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    /* PAIRS */
-    .section-title {
-      font-size: 18px;
-      margin: 20px 0 12px;
-    }
-
-    .pairs {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-    }
-
-    .pair-card {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    .pair-header {
-      padding: 17px;
-      border-bottom: 1px solid #1d2938;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .pair-name {
-      font-size: 21px;
-      font-weight: bold;
-    }
-
-    .status {
-      padding: 7px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: bold;
-    }
-
-    .status.buy {
-      background: rgba(23, 180, 105, .15);
-      color: #39e58c;
-      border: 1px solid #1b7549;
-    }
-
-    .status.sell {
-      background: rgba(239, 70, 81, .15);
-      color: #ff6670;
-      border: 1px solid #81333b;
-    }
-
-    .status.wait {
-      background: rgba(255, 189, 74, .12);
-      color: #ffbd4a;
-      border: 1px solid #795b22;
-    }
-
-    .status.offline {
-      background: rgba(127, 141, 163, .12);
-      color: #9ba7b8;
-      border: 1px solid #465263;
-    }
-
-    .pair-body {
-      padding: 17px;
-    }
-
-    .price-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-
-    .price-box {
-      background: #111a27;
-      border: 1px solid #202d3e;
-      border-radius: 10px;
-      padding: 11px;
-    }
-
-    .price-box span {
-      display: block;
-      color: #7f8da3;
-      font-size: 10px;
-      margin-bottom: 5px;
-    }
-
-    .price-box strong {
-      font-size: 14px;
-      word-break: break-word;
-    }
-
-    .price-main {
-      color: #ffffff;
-      font-size: 18px !important;
-    }
-
-    .sl {
-      color: #ff6670;
-    }
-
-    .tp {
-      color: #39e58c;
-    }
-
-    /* SCORE */
-    .score-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 15px;
-      background: #111a27;
-      border-radius: 10px;
-      padding: 12px;
-    }
-
-    .score-label {
-      color: #8b98aa;
-      font-size: 12px;
-    }
-
-    .score {
-      font-size: 22px;
-      font-weight: bold;
-    }
-
-    .score-high {
-      color: #39e58c;
-    }
-
-    .score-medium {
-      color: #ffbd4a;
-    }
-
-    .score-low {
-      color: #ff6670;
-    }
-
-    /* TIMEFRAMES */
-    .timeframes {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 9px;
-      margin-bottom: 15px;
-    }
-
-    .tf {
-      background: #111a27;
-      border: 1px solid #202d3e;
-      border-radius: 10px;
-      padding: 12px;
-    }
-
-    .tf-title {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .tf-trend {
-      font-weight: bold;
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
-
-    .tf-rsi {
-      color: #8996a8;
-      font-size: 11px;
-    }
-
-    .bullish {
-      color: #39e58c;
-    }
-
-    .bearish {
-      color: #ff6670;
-    }
-
-    .neutral {
-      color: #ffbd4a;
-    }
-
-    /* ANALYSIS */
-    .analysis {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-
-    .analysis-item {
-      background: #111a27;
-      border-radius: 9px;
-      padding: 10px;
-      border: 1px solid #202d3e;
-    }
-
-    .analysis-item .label {
-      color: #748197;
-      font-size: 10px;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-    }
-
-    .analysis-item .value {
-      font-size: 12px;
-      font-weight: bold;
-      word-break: break-word;
-    }
-
-    /* NEWS / SMC SETUP */
-    .setup-panel {
-      background: #101824;
-      border: 1px solid #202d3e;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 15px;
-    }
-
-    .setup-title {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
-    .setup-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
-
-    .setup-item {
-      background: #111a27;
-      border-radius: 8px;
-      padding: 9px;
-      border: 1px solid #202d3e;
-    }
-
-    .setup-item span {
-      display: block;
-      color: #748197;
-      font-size: 9px;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-
-    .setup-item strong {
-      font-size: 11px;
-    }
-
-    .confirmed {
-      color: #39e58c;
-    }
-
-    .not-confirmed {
-      color: #ffbd4a;
-    }
-
-    /* MESSAGE */
-    .message {
-      background: #101824;
-      border-left: 3px solid #49627f;
-      border-radius: 7px;
-      padding: 11px;
-      color: #b8c3d2;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    /* API / PERFORMANCE */
-    .bottom-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .panel {
-      background: #0d131d;
-      border: 1px solid #1d2938;
-      border-radius: 14px;
-      padding: 17px;
-    }
-
-    .panel h3 {
-      margin-bottom: 14px;
-      font-size: 16px;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 15px;
-      padding: 9px 0;
-      border-bottom: 1px solid #182331;
-      font-size: 12px;
-    }
-
-    .info-row:last-child {
-      border-bottom: none;
-    }
-
-    .info-row span:first-child {
-      color: #7f8da3;
-    }
-
-    .info-row span:last-child {
-      text
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trading Cloud Monitor</title>
+<style>
+:root{--bg:#080d14;--card:#101923;--card2:#17222f;--border:#263646;--text:#e8eef5;--muted:#8fa1b3;--green:#00d59a;--red:#ff5c6c;--yellow:#f4bd4f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;padding:18px}
+header{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+h1{margin:0;font-size:25px}.sub{color:var(--muted);font-size:12px;margin-top:5px}.status{display:flex;gap:8px;flex-wrap:wrap}
+.pill{padding:7px 11px;border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--muted);background:var(--card)}
+.on{color:var(--green);border-color:#176e58}.warn{color:var(--yellow);border-color:#765a1e}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}.title{font-size:11px;color:var(--muted);font-weight:bold;text-transform:uppercase;letter-spacing:.1em;margin-bottom:13px}
+.pair{border:1px solid var(--border);background:var(--card2);border-radius:11px;padding:14px;margin-bottom:10px}.pair:last-child{margin-bottom:0}
+.pairtop{display:flex;justify-content:space-between;align-items:center}.name{font-weight:bold;font-family:monospace;font-size:15px}
+.signal{font-weight:bold;font-size:13px;padding:5px 9px;border-radius:7px}.buy{color:var(--green);background:#07382d}.sell{color:var(--red);background:#3a1119}.wait{color:var(--yellow);background:#3a2d0c}.offline{color:var(--muted);background:#202a34}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:11px}.metric{background:#0c141d;border-radius:8px;padding:8px}.metric b{display:block;font-family:monospace;font-size:12px}.metric span{font-size:9px;color:var(--muted)}
+.analysis{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.item{background:var(--card2);padding:9px;border-radius:8px;font-size:11px}.item span{color:var(--muted)}
+.news{border-left:3px solid var(--red);padding:12px;background:var(--card2);border-radius:8px;margin-bottom:8px}.phase{font-size:13px;font-weight:bold;color:var(--yellow);margin-bottom:5px}.small{font-size:11px;color:var(--muted);line-height:1.5}
+button{border:0;border-radius:8px;padding:9px 13px;background:var(--green);font-weight:bold;cursor:pointer}.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+pre{white-space:pre-wrap;word-break:break-word;font-size:10px;color:var(--muted)}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.analysis{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>📡 Trading Cloud Monitor</h1><div class="sub">12H + 1H + 5M Multi-Timeframe Signal Engine</div></div>
+<div class="status"><div id="online" class="pill">● Checking...</div><div id="market" class="pill">Market...</div><div class="pill">XAU/USD · GBP/JPY</div></div>
+</header>
+
+<div class="grid">
+<section class="card full"><div class="title">System Status</div>
+<div class="metrics">
+<div class="metric"><b id="lastScan">—</b><span>LAST SCAN</span></div>
+<div class="metric"><b id="updated">—</b><span>UPDATED</span></div>
+<div class="metric"><b id="pairCount">2</b><span>PAIRS</span></div>
+<div class="metric"><b id="apiStatus">—</b><span>API</span></div>
+</div>
+<div class="buttons"><button onclick="scanNow()">↻ Scan Now</button><button onclick="load()">↻ Refresh</button></div>
+</section>
+
+<section class="card"><div class="title">Live Pair Signals</div><div id="pairs"><div class="small">Loading signals...</div></div></section>
+
+<section class="card"><div class="title">High-Impact News Protection</div><div id="news"><div class="small">Loading news protection...</div></div></section>
+
+<section class="card full"><div class="title">5M Entry Confirmation</div>
+<div class="analysis">
+<div class="item"><b>1. Liquidity Sweep</b><br><span>Wait for price to take liquidity before chasing a move.</span></div>
+<div class="item"><b>2. BOS / CHoCH</b><br><span>Require a structure shift confirming direction.</span></div>
+<div class="item"><b>3. Retracement</b><br><span>Prefer a controlled pullback rather than the first spike.</span></div>
+<div class="item"><b>4. FVG</b><br><span>Use the fair value gap/retest area when available.</span></div>
+</div></section>
+
+<section class="card full"><div class="title">Bot Response</div><pre id="raw">Waiting for /api/status...</pre></section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function fmt(v){if(v===null||v===undefined||v==='')return '—';return typeof v==='number'?v.toFixed(5):v}
+function signalClass(s){s=String(s||'WAIT').toUpperCase();return s==='BUY'?'buy':s==='SELL'?'sell':s==='OFFLINE'?'offline':'wait'}
+function pairCard(p){
+ const s=String(p.status||p.signal||'WAIT').toUpperCase(),a=p.analysis||{};
+ return `<div class="pair">
+ <div class="pairtop"><div class="name">${p.pair||'—'}</div><div class="signal ${signalClass(s)}">${s}</div></div>
+ <div class="metrics">
+ <div class="metric"><b>${fmt(p.entry||p.price)}</b><span>ENTRY</span></div>
+ <div class="metric"><b>${fmt(p.stopLoss)}</b><span>STOP LOSS</span></div>
+ <div class="metric"><b>${fmt(p.takeProfit)}</b><span>TAKE PROFIT</span></div>
+ <div class="metric"><b>${p.score??'—'}/5</b><span>SCORE</span></div></div>
+ <div class="small" style="margin-top:10px">${p.message||p.detail||'No confirmed setup yet.'}</div>
+ ${a.trend||a.rsi||a.bos||a.choch||a.liquidity||a.fvg||a.retracement?`<div class="analysis" style="margin-top:10px">
+ <div class="item"><span>12H</span><br>${a.trend12h||a.trend||'—'}</div>
+ <div class="item"><span>1H</span><br>${a.trend1h||'—'}</div>
+ <div class="item"><span>SMC</span><br>${a.bos||a.choch||a.structure||'—'}</div>
+ <div class="item"><span>FVG / Retracement</span><br>${a.fvg||'—'} · ${a.retracement||'—'}</div>
+ </div>`:''}</div>`
+}
+async function load(){
+ try{
+  const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();
+  $('raw').textContent=JSON.stringify(d,null,2);
+  $('online').textContent=d.online?'● ONLINE':'● OFFLINE';$('online').className='pill '+(d.online?'on':'warn');
+  $('market').textContent=d.marketOpen?'● MARKET OPEN':'● MARKET CLOSED';$('market').className='pill '+(d.marketOpen?'on':'warn');
+  $('lastScan').textContent=d.lastScan?new Date(d.lastScan).toLocaleTimeString():'—';
+  $('updated').textContent=new Date().toLocaleTimeString();
+  $('pairCount').textContent=Object.keys(d.pairs||{}).length;
+  $('apiStatus').textContent=d.api?.lastError?'ERROR':'OK';
+  $('pairs').innerHTML=Object.values(d.pairs||{}).map(pairCard).join('')||'<div class="small">No pair data.</div>';
+  renderNews(d.newsProtection,d.news||d.newsEvents);
+ }catch(e){$('online').textContent='● DASHBOARD ERROR';$('online').className='pill warn';$('raw').textContent=e.message}
+}
+function renderNews(n,events){
+ let phase=n?.phase||n?.status||'CLEAR',text=n?.message||'No active high-impact news protection.';
+ if(events&&Array.isArray(events)&&events.length)text+=' '+events.length+' calendar event(s) loaded.';
+ $('news').innerHTML=`<div class="news"><div class="phase">${phase}</div><div class="small">${text}</div></div><div class="small">Flow: BEFORE NEWS → WAIT · IMMEDIATELY AFTER → WAIT · AFTER MARKET SETTLES → 5M liquidity sweep → BOS/CHoCH → retracement/FVG → entry.</div>`;
+}
+async function scanNow(){try{await fetch('/api/scan',{method:'POST'});setTimeout(load,1200)}catch(e){alert('Scan request failed: '+e.message)}}
+load();setInterval(load,15000);
+</script>
+</body>
+</html>
